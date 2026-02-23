@@ -3,10 +3,9 @@ import { Topbar } from "./topbar";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  title?: string;
 }
 
-export function DashboardLayout({ children, title }: DashboardLayoutProps) {
+export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
@@ -15,7 +14,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Topbar */}
-        <Topbar title={title} />
+        <Topbar />
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-6">{children}</main>

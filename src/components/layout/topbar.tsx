@@ -6,16 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-interface TopbarProps {
-  title?: string;
-}
+// interface TopbarProps {
+//   title?: string;
+// }
 
-export function Topbar({ title = "Dashboard" }: TopbarProps) {
+export function Topbar() {
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-background px-6">
       {/* Left: Page Title */}
       <div>
-        <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+        {/* <h1 className="text-lg font-semibold text-foreground">{title}</h1> */}
         <p className="text-xs text-muted-foreground">
           Selamat datang di Admin Revika Djaya
         </p>
