@@ -45,9 +45,6 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Stats Cards */}
       <section>
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-muted-foreground">
-          Ringkasan
-        </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {statCards.map((stat) => {
             const Icon = iconMap[stat.icon] ?? Package;

@@ -38,12 +38,12 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "relative flex h-full flex-col border-r border-border bg-sidebar transition-all duration-300",
+        "relative flex h-full flex-col bg-sidebar transition-all duration-300",
         collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Logo / Brand */}
-      <div className="flex h-16 items-center border-b border-border px-4">
+      <div className="flex h-16 items-center px-4">
         <Building2 className="h-7 w-7 shrink-0 text-primary" />
         {!collapsed && (
           <span className="ml-3 truncate text-base font-bold text-sidebar-foreground">
@@ -53,7 +53,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3 border-r border-border">
         {navItems.map((item) => {
           const Icon = iconMap[item.icon] ?? LayoutDashboard;
           const isActive = pathname === item.href;
@@ -91,7 +91,7 @@ export function Sidebar() {
       {/* Collapse Toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-20 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:text-foreground"
+        className="absolute -right-3 top-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-primary text-primary-foreground shadow-sm transition-colors hover:text-primary-foreground"
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         {collapsed ? (
@@ -103,7 +103,7 @@ export function Sidebar() {
 
       {/* Footer */}
       {!collapsed && (
-        <div className="border-t border-border p-4">
+        <div className="border-t border-r border-border p-4">
           <p className="text-xs text-muted-foreground">
             © 2026 Revika Djaya Admin
           </p>

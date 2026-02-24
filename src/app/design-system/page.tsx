@@ -76,7 +76,7 @@ export default function DesignSystemPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">
+          <h2 className="font-bold text-foreground">
             Design System
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -103,7 +103,7 @@ export default function DesignSystemPage() {
             </code>
           </div>
           <div>
-            <h2 className="scroll-m-20 text-3xl font-semibold tracking-tight">
+            <h2 className="scroll-m-20 font-semibold tracking-tight">
               Heading 2 — Dashboard Admin
             </h2>
             <code className="text-xs text-muted-foreground">

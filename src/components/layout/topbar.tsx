@@ -12,25 +12,19 @@ import { Badge } from "@/components/ui/badge";
 
 export function Topbar() {
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-background px-6">
+    <header className="flex h-16 items-center justify-between border-b border-border bg-sidebar px-6">
       {/* Left: Page Title */}
-      <div>
-        {/* <h1 className="text-lg font-semibold text-foreground">{title}</h1> */}
-        <p className="text-xs text-muted-foreground">
-          Selamat datang di Admin Revika Djaya
-        </p>
+      {/* Search */}
+      <div className="relative hidden md:block">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Cari..."
+          className="h-9 w-96 pl-9 text-sm"
+        />
       </div>
 
       {/* Right: Actions */}
       <div className="flex items-center gap-3">
-        {/* Search */}
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Cari..."
-            className="h-9 w-64 pl-9 text-sm"
-          />
-        </div>
 
         {/* Notification */}
         <div className="relative">
