@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Package,
-  Warehouse,
-  ClipboardList,
-  Users,
   BarChart3,
-  Palette,
-  Settings,
+  Building2,
   ChevronLeft,
   ChevronRight,
-  Building2,
+  ClipboardList,
+  LayoutDashboard,
+  Package,
+  Palette,
+  Settings,
+  ShoppingCart,
+  Users,
+  Warehouse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ const iconMap: Record<string, React.ElementType> = {
   BarChart3,
   Palette,
   Settings,
+  ShoppingCart,
 };
 
 export function Sidebar() {
@@ -38,7 +40,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "relative flex h-full flex-col bg-sidebar transition-all duration-300",
+        "relative flex h-full flex-col bg-sidebar transition-all duration-300 border-r border-border",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -53,7 +55,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3 border-r border-border">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {navItems.map((item) => {
           const Icon = iconMap[item.icon] ?? LayoutDashboard;
           const isActive = pathname === item.href;
