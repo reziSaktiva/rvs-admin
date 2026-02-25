@@ -110,7 +110,6 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
-  { label: "Produk", href: "/produk", icon: "Package", badge: 12 },
   { label: "Stok", href: "/stok", icon: "Warehouse" },
   { label: "Pesanan", href: "/pesanan", icon: "ClipboardList", badge: 5 },
   { label: "Pelanggan", href: "/pelanggan", icon: "Users" },
