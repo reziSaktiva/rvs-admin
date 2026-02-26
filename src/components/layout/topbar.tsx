@@ -1,20 +1,30 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
+import { Bell, LogOut, Search } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-
-// interface TopbarProps {
-//   title?: string;
-// }
+import { logout } from "@/app/(auth)/actions";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useTransition } from "react";
 
 export function Topbar() {
+  const [isPending, startTransition] = useTransition();
+
+  function handleLogout() {
+    startTransition(async () => {
+      await logout();
+    });
+  }
+
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-sidebar px-6">
-      {/* Left: Page Title */}
-      {/* Search */}
+      {/* Left: Search */}
       <div className="relative hidden md:block">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -25,7 +35,6 @@ export function Topbar() {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-3">
-
         {/* Notification */}
         <div className="relative">
           <Button variant="outline" size="icon" aria-label="Notifikasi">
@@ -43,6 +52,22 @@ export function Topbar() {
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
           RD
         </div>
+
+        {/* Logout */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Keluar"
+              onClick={handleLogout}
+              disabled={isPending}
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Keluar</TooltipContent>
+        </Tooltip>
       </div>
     </header>
   );

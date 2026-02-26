@@ -3,7 +3,6 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -27,20 +26,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" suppressHydrationWarning>
-      <body
-        className={`${poppins.variable} font-sans antialiased`}
-      >
+      <body className={`${poppins.variable} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>
-            <DashboardLayout>
-              {children}
-            </DashboardLayout>
-          </TooltipProvider>
+          <TooltipProvider>{children}</TooltipProvider>
         </ThemeProvider>
       </body>
     </html>
