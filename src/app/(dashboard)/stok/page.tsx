@@ -13,11 +13,19 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { products } from "@/lib/dummyData";
+import { getProducts } from "@/lib/product";
 import { cn } from "@/lib/utils";
 import { EditIcon, FilterIcon, LayoutGridIcon, ListIcon, PlusIcon } from "lucide-react";
 import Image from "next/image";
 
-export default function StokPage() {
+export default async function StokPage() {
+    const { data, message } = await getProducts();
+
+
+    if (data) {
+        console.warn(data, message);
+    }
+
     return (
         <Tabs defaultValue="list">
             <div className="space-y-4">
