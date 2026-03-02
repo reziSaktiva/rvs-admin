@@ -14,11 +14,11 @@ import {
   Settings,
   ShoppingCart,
   Users,
+  Users2,
   Warehouse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { navItems } from "@/data/dashboard-data";
 import { useState } from "react";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -31,7 +31,26 @@ const iconMap: Record<string, React.ElementType> = {
   Palette,
   Settings,
   ShoppingCart,
+  Users2,
 };
+
+export interface NavItem {
+  label: string;
+  href: string;
+  icon: string;
+  badge?: number;
+}
+
+export const navItems: NavItem[] = [
+  { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
+  { label: "Stok", href: "/stok", icon: "Warehouse" },
+  { label: "Kasir", href: "/kasir", icon: "ShoppingCart" },
+  { label: "Admin", href: "/admin", icon: "Users2" },
+  { label: "Pelanggan", href: "/pelanggan", icon: "Users" },
+  { label: "Laporan", href: "/laporan", icon: "BarChart3" },
+  { label: "Design System", href: "/design-system", icon: "Palette" },
+  { label: "Pengaturan", href: "/pengaturan", icon: "Settings" },
+];
 
 export function Sidebar() {
   const pathname = usePathname();

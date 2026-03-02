@@ -100,20 +100,3 @@ export const recentOrders: RecentOrder[] = [
     date: "17 Feb 2026",
   },
 ];
-
-export interface NavItem {
-  label: string;
-  href: string;
-  icon: string;
-  badge?: number;
-}
-
-export const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
-  { label: "Stok", href: "/stok", icon: "Warehouse" },
-  { label: "Kasir", href: "/kasir", icon: "ShoppingCart" },
-  { label: "Pelanggan", href: "/pelanggan", icon: "Users" },
-  { label: "Laporan", href: "/laporan", icon: "BarChart3" },
-  { label: "Design System", href: "/design-system", icon: "Palette" },
-  { label: "Pengaturan", href: "/pengaturan", icon: "Settings" },
-];
