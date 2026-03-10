@@ -30,17 +30,20 @@ export async function proxy(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser();
 
-    const isLoginPage = request.nextUrl.pathname.startsWith("/login");
+    const publicPaths = ["/login", "/reset-password"];
+    const isPublicPage = publicPaths.some((path) =>
+        request.nextUrl.pathname.startsWith(path)
+    );
 
-    // Jika belum login dan bukan di halaman login → redirect ke /login
-    if (!user && !isLoginPage) {
+    // Jika belum login dan bukan di halaman publik → redirect ke /login
+    if (!user && !isPublicPage) {
         const url = request.nextUrl.clone();
         url.pathname = "/login";
         return NextResponse.redirect(url);
     }
 
-    // Jika sudah login dan membuka halaman login → redirect ke /
-    if (user && isLoginPage) {
+    // Jika sudah login dan membuka halaman publik → redirect ke /
+    if (user && isPublicPage) {
         const url = request.nextUrl.clone();
         url.pathname = "/";
         return NextResponse.redirect(url);

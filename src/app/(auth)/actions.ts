@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export async function login(
@@ -25,4 +26,26 @@ export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+export async function resetPassword(
+  _prevState: { error: string | null; success: boolean },
+  formData: FormData
+): Promise<{ error: string | null; success: boolean }> {
+  const supabase = await createClient();
+  const headersList = await headers();
+  const origin = headersList.get("origin") ?? "";
+
+  const email = formData.get("email") as string;
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/login`,
+  });
+
+  if (error) {
+    console.error(error);
+    return { error: "Gagal mengirim email reset. Silakan coba lagi.", success: false };
+  }
+
+  return { error: null, success: true };
 }
