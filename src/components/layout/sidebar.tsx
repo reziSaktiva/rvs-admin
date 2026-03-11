@@ -45,7 +45,7 @@ export const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
   { label: "Stok", href: "/stok", icon: "Warehouse" },
   { label: "Kasir", href: "/kasir", icon: "ShoppingCart" },
-  { label: "Admin", href: "/admin", icon: "Users2" },
+  { label: "Tim", href: "/team", icon: "Users2" },
   { label: "Pelanggan", href: "/pelanggan", icon: "Users" },
   { label: "Laporan", href: "/laporan", icon: "BarChart3" },
   { label: "Design System", href: "/design-system", icon: "Palette" },
