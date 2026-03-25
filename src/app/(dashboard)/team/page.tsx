@@ -30,7 +30,7 @@ export default async function StokPage() {
       <div className="space-y-4">
         <h1>Tim Kita</h1>
         <div className="flex gap-3 items-center">
-          <Input placeholder="Cari produk..." />
+          <Input placeholder="Cari anggota..." />
           <TabsList>
             <TabsTrigger value="list"><ListIcon /></TabsTrigger>
             <TabsTrigger value="grid"><LayoutGridIcon /></TabsTrigger>
@@ -41,13 +41,13 @@ export default async function StokPage() {
           </Button>
           <Button variant="default">
             <PlusIcon className="w-4 h-4" />
-            Tambah Produk
+            Tambah Anggota
           </Button>
         </div>
         <TabsContent value="list">
           <Card>
             <CardHeader>
-              <CardTitle>Daftar semua stok produk</CardTitle>
+              <CardTitle>Daftar semua tim kita</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -69,7 +69,7 @@ export default async function StokPage() {
                       <TableCell>{user.fullName}</TableCell>
                       <TableCell>{user.phone}</TableCell>
                       <TableCell>{user.gender}</TableCell>
-                      <TableCell>{user.roleId}</TableCell>
+                      <TableCell>{user.role?.displayName || "Belum ada role"}</TableCell>
                       <TableCell>
                         <Button variant="outline" size="sm" className="border-primary text-primary">
                           <EditIcon className="w-4 h-4" />

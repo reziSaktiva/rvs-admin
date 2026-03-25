@@ -5,6 +5,13 @@ export const getUsers = async () => {
     const users = await db.query.profiles.findMany({
         limit: 10,
         offset: 0,
+        with: {
+            role: {
+                columns: {
+                    displayName: true,
+                },
+            },
+        }
     });
 
     if (!users) {

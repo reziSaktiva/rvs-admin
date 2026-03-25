@@ -8,7 +8,8 @@ export const genderType = pgEnum("gender_type", ['male', 'female', 'other'])
 
 export const roles = pgTable("roles", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
-	name: text().notNull(),
+	title: text("title").notNull(),
+	displayName: text("display_name").notNull(),
 	canManageUsers: boolean("can_manage_users").default(false),
 	canManageProducts: boolean("can_manage_products").default(false),
 	canEditProducts: boolean("can_edit_products").default(false),
@@ -17,7 +18,7 @@ export const roles = pgTable("roles", {
 	canAccessAll: boolean("can_access_all").default(false),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	unique("roles_name_key").on(table.name),
+	unique("roles_name_key").on(table.title),
 ]);
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
@@ -26,9 +27,9 @@ export const roles = pgTable("roles", {
 
 export const profiles = pgTable("profiles", {
 	id: uuid().primaryKey().notNull(),
-	username: text().notNull(),
+	username: text("username").notNull(),
 	fullName: text("full_name").notNull(),
-	phone: text(),
+	phone: text("phone"),
 	gender: genderType().default('other').notNull(),
 	photoUrl: text("photo_url"),
 	roleId: uuid("role_id"),
