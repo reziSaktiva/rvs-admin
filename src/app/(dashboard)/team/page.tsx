@@ -16,10 +16,10 @@ import { getUsers } from "@/lib/users";
 import { getRoles } from "@/lib/roles";
 import { AddMemberDialog } from "@/components/team/add-member-dialog";
 import { cn } from "@/lib/utils";
-import { EditIcon, FilterIcon, LayoutGridIcon, ListIcon } from "lucide-react";
+import { EditIcon, FilterIcon, LayoutGridIcon, ListIcon, TrashIcon } from "lucide-react";
 import Image from "next/image";
 
-export default async function StokPage() {
+export default async function TeamPage() {
   const { data } = await getUsers();
   const roles = await getRoles();
 
@@ -65,10 +65,14 @@ export default async function StokPage() {
                       <TableCell>{user.phone}</TableCell>
                       <TableCell>{user.gender}</TableCell>
                       <TableCell>{user.role?.displayName || "Belum ada role"}</TableCell>
-                      <TableCell>
+                      <TableCell className="flex gap-2">
                         <Button variant="outline" size="sm" className="border-primary text-primary">
                           <EditIcon className="w-4 h-4" />
                           Edit
+                        </Button>
+                        <Button variant="destructive" size="sm" className="border-primary text-primary">
+                          <TrashIcon className="w-4 h-4" />
+                          Delete
                         </Button>
                       </TableCell>
                     </TableRow>

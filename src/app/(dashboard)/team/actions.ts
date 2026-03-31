@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type AddMemberPayload = {
@@ -49,6 +50,8 @@ export async function addMember(payload: AddMemberPayload): Promise<ActionResult
     }
 
     const userId = authData.user.id;
+
+    revalidatePath("/team");
 
     return {
         success: true,
