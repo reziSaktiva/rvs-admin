@@ -13,17 +13,15 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getUsers } from "@/lib/users";
+import { getRoles } from "@/lib/roles";
+import { AddMemberDialog } from "@/components/team/add-member-dialog";
 import { cn } from "@/lib/utils";
-import { EditIcon, FilterIcon, LayoutGridIcon, ListIcon, PlusIcon } from "lucide-react";
+import { EditIcon, FilterIcon, LayoutGridIcon, ListIcon } from "lucide-react";
 import Image from "next/image";
 
 export default async function StokPage() {
-  const { data, message } = await getUsers();
-
-
-  if (data) {
-    console.warn(data, message);
-  }
+  const { data } = await getUsers();
+  const roles = await getRoles();
 
   return (
     <Tabs defaultValue="list">
@@ -39,10 +37,7 @@ export default async function StokPage() {
             Filter
             <FilterIcon className="w-4 h-4" />
           </Button>
-          <Button variant="default">
-            <PlusIcon className="w-4 h-4" />
-            Tambah Anggota
-          </Button>
+          <AddMemberDialog roles={roles} />
         </div>
         <TabsContent value="list">
           <Card>
