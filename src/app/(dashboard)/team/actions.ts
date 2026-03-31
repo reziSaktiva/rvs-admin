@@ -1,8 +1,6 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { db } from "@/lib/db";
-import { profiles } from "@/lib/db/drizzle/schema";
 
 type AddMemberPayload = {
     fullName: string;
