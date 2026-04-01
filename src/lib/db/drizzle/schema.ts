@@ -4,10 +4,12 @@ import {
   uuid,
   text,
   integer,
+  numeric,
   boolean,
   timestamp,
   pgEnum,
   foreignKey,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -69,24 +71,54 @@ export const profiles = pgTable(
   ]
 );
 
+// ─── Products Taxonomy ────────────────────────────────────────────────────────
+
+export const categories = pgTable(
+  "categories",
+  {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    name: text("name").notNull(),
+    slug: text("slug"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+  },
+  (table) => [
+    unique("categories_name_key").on(table.name),
+    unique("categories_slug_key").on(table.slug),
+  ]
+);
+
+export const tags = pgTable(
+  "tags",
+  {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+  },
+  (table) => [unique("tags_name_key").on(table.name)]
+);
+
 // ─── Products ─────────────────────────────────────────────────────────────────
 
 export const product = pgTable(
   "products",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
-    name: text().notNull(),
-    slug: text(),
-    category: text().notNull(),
-    tags: text().array(),
-    quality: text(),
-    buyPrice: integer("buy_price").default(0),
-    price: integer().notNull(),
-    packingCost: integer("packing_cost").default(0),
-    stok: integer().default(0),
-    unit: text().default("pasang"),
-    image: text(),
-    status: boolean().default(true),
+    name: text("name").notNull(),
+    sku: text("sku"),
+    barcode: text("barcode"),
+    price: numeric("price", { precision: 12, scale: 2 }).notNull(),
+    costPrice: numeric("cost_price", { precision: 12, scale: 2 }),
+    stock: integer("stock").default(0),
+    description: text("description"),
+    imageUrl: text("image_url"),
+    isActive: boolean("is_active").default(true),
+    categoryId: uuid("category_id"),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
@@ -96,5 +128,33 @@ export const product = pgTable(
       mode: "string",
     }).defaultNow(),
   },
-  (table) => [unique("product_slug_key").on(table.slug)]
+  (table) => [
+    unique("products_sku_key").on(table.sku),
+    foreignKey({
+      name: "products_category_id_fkey",
+      columns: [table.categoryId],
+      foreignColumns: [categories.id],
+    }),
+  ]
+);
+
+export const productTags = pgTable(
+  "product_tags",
+  {
+    productId: uuid("product_id").notNull(),
+    tagId: uuid("tag_id").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.productId, table.tagId], name: "product_tags_pkey" }),
+    foreignKey({
+      name: "product_tags_product_id_fkey",
+      columns: [table.productId],
+      foreignColumns: [product.id],
+    }),
+    foreignKey({
+      name: "product_tags_tag_id_fkey",
+      columns: [table.tagId],
+      foreignColumns: [tags.id],
+    }),
+  ]
 );
