@@ -90,8 +90,8 @@ export const categories = pgTable(
   ]
 );
 
-export const tags = pgTable(
-  "tags",
+export const keywords = pgTable(
+  "keywords",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
     name: text("name").notNull(),
@@ -110,11 +110,6 @@ export const product = pgTable(
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
     name: text("name").notNull(),
-    sku: text("sku"),
-    barcode: text("barcode"),
-    price: numeric("price", { precision: 12, scale: 2 }).notNull(),
-    costPrice: numeric("cost_price", { precision: 12, scale: 2 }),
-    stock: integer("stock").default(0),
     description: text("description"),
     imageUrl: text("image_url"),
     isActive: boolean("is_active").default(true),
@@ -129,7 +124,6 @@ export const product = pgTable(
     }).defaultNow(),
   },
   (table) => [
-    unique("products_sku_key").on(table.sku),
     foreignKey({
       name: "products_category_id_fkey",
       columns: [table.categoryId],
@@ -138,8 +132,39 @@ export const product = pgTable(
   ]
 );
 
-export const productTags = pgTable(
-  "product_tags",
+export const productVariant = pgTable(
+  "product_variants",
+  {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    productId: uuid("product_id").notNull(),
+    size: text("size"),
+    sku: text("sku"),
+    barcode: text("barcode"),
+    price: numeric("price", { precision: 12, scale: 2 }).notNull(),
+    stock: integer("stock").default(0),
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+  },
+  (table) => [
+    unique("product_variants_barcode_key").on(table.barcode),
+    unique("product_variants_sku_key").on(table.sku),
+    foreignKey({
+      name: "product_variants_product_id_fkey",
+      columns: [table.productId],
+      foreignColumns: [product.id],
+    }).onDelete("cascade"),
+  ]
+);
+
+export const productKeywords = pgTable(
+  "product_keywords",
   {
     productId: uuid("product_id").notNull(),
     tagId: uuid("tag_id").notNull(),
@@ -154,7 +179,7 @@ export const productTags = pgTable(
     foreignKey({
       name: "product_tags_tag_id_fkey",
       columns: [table.tagId],
-      foreignColumns: [tags.id],
+      foreignColumns: [keywords.id],
     }),
   ]
 );

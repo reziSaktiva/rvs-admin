@@ -3,9 +3,10 @@ import {
   roles,
   profiles,
   product,
+  productVariant,
   categories,
-  tags,
-  productTags,
+  keywords,
+  productKeywords,
 } from "./schema";
 
 // ─── Roles ────────────────────────────────────────────────────────────────────
@@ -31,8 +32,8 @@ export const categoriesRelations = relations(categories, ({ many }) => ({
 
 // ─── Tags ─────────────────────────────────────────────────────────────────────
 
-export const tagsRelations = relations(tags, ({ many }) => ({
-  productTags: many(productTags),
+export const keywordsRelations = relations(keywords, ({ many }) => ({
+  productKeywords: many(productKeywords),
 }));
 
 // ─── Products ─────────────────────────────────────────────────────────────────
@@ -42,18 +43,28 @@ export const productRelations = relations(product, ({ one, many }) => ({
     fields: [product.categoryId],
     references: [categories.id],
   }),
-  productTags: many(productTags),
+  variants: many(productVariant),
+  productKeywords: many(productKeywords),
+}));
+
+// ─── Product Variants ─────────────────────────────────────────────────────────
+
+export const productVariantRelations = relations(productVariant, ({ one }) => ({
+  product: one(product, {
+    fields: [productVariant.productId],
+    references: [product.id],
+  }),
 }));
 
 // ─── Product Tags ─────────────────────────────────────────────────────────────
 
-export const productTagsRelations = relations(productTags, ({ one }) => ({
+export const productKeywordsRelations = relations(productKeywords, ({ one }) => ({
   product: one(product, {
-    fields: [productTags.productId],
+    fields: [productKeywords.productId],
     references: [product.id],
   }),
-  tag: one(tags, {
-    fields: [productTags.tagId],
-    references: [tags.id],
+  tag: one(keywords, {
+    fields: [productKeywords.tagId],
+    references: [keywords.id],
   }),
 }));
