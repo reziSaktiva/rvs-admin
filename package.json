@@ -11,6 +11,14 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "type-check": "tsc --noEmit",
+    "seed:units": "bun run src/lib/db/seeds/seed-default-units.ts",
+    "seed:cost-items": "bun run src/lib/db/seeds/seed-default-cost-items.ts",
+    "seed:products": "bun run src/lib/db/seeds/seed-default-products.ts",
+    "seed:recipes": "bun run src/lib/db/seeds/seed-default-recipes.ts",
+    "seed:inventory": "bun run src/lib/db/seeds/seed-opening-inventory.ts",
+    "seed:reset": "bun run src/lib/db/seeds/reset-demo-seed.ts",
+    "seed:refresh": "bun run seed:reset && bun run seed:all",
+    "seed:all": "bun run seed:units && bun run seed:cost-items && bun run seed:products && bun run seed:recipes && bun run seed:inventory",
     "commit": "git add -A && git commit"
   },
   "dependencies": {
