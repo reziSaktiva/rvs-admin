@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { statCards, recentOrders } from "@/data/dashboard-data";
 import { cn } from "@/lib/utils";
+import { getRawMaterialAssetSummary } from "@/lib/inventory";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -40,12 +41,36 @@ const statusConfig: Record<
   batal: { label: "Dibatalkan", variant: "destructive" },
 };
 
-export default function DashboardPage() {
+const formatCurrency = (value: number) =>
+  value.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+
+export default async function DashboardPage() {
+  const assetSummary = await getRawMaterialAssetSummary();
+
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
       <section>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="relative overflow-hidden border-primary/30">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Nilai Aset Bahan Baku
+              </CardTitle>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                <Warehouse className="h-5 w-5 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">
+                {formatCurrency(assetSummary.totalAssetValue)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {assetSummary.items.length} item terdata di inventory valuation
+              </p>
+            </CardContent>
+          </Card>
+
           {statCards.map((stat) => {
             const Icon = iconMap[stat.icon] ?? Package;
             return (

@@ -43,12 +43,14 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
-  { label: "Stok", href: "/stok", icon: "Warehouse" },
-  { label: "Kasir", href: "/kasir", icon: "ShoppingCart" },
+  { label: "Produk & Varian", href: "/produk", icon: "Package" },
+  { label: "Bahan Baku", href: "/bahan-baku", icon: "Warehouse" },
+  { label: "Resep Produksi", href: "/resep-produksi", icon: "ClipboardList" },
+  { label: "Kalkulator HPP", href: "/hpp", icon: "BarChart3" },
+  { label: "Pembelian Bahan", href: "/pembelian", icon: "ShoppingCart" },
+  { label: "Penjualan", href: "/penjualan", icon: "ShoppingCart" },
+  { label: "Laporan Profit", href: "/laporan", icon: "BarChart3" },
   { label: "Tim", href: "/team", icon: "Users2" },
-  { label: "Pelanggan", href: "/pelanggan", icon: "Users" },
-  { label: "Laporan", href: "/laporan", icon: "BarChart3" },
-  { label: "Design System", href: "/design-system", icon: "Palette" },
   { label: "Pengaturan", href: "/pengaturan", icon: "Settings" },
 ];
 
