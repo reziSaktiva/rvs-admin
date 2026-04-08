@@ -1,12 +1,4 @@
-import {
-  Package,
-  Warehouse,
-  ShoppingCart,
-  ClipboardList,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-} from "lucide-react";
+import { Warehouse } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -15,37 +7,27 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { statCards, recentOrders } from "@/data/dashboard-data";
 import { cn } from "@/lib/utils";
 import { getRawMaterialAssetSummary } from "@/lib/inventory";
+import { getDashboardAnalyticsSummary } from "@/lib/dashboard-analytics";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-const iconMap: Record<string, React.ElementType> = {
-  Package,
-  Warehouse,
-  ShoppingCart,
-  ClipboardList,
-};
-
-const statusConfig: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
-> = {
-  selesai: { label: "Selesai", variant: "default" },
-  proses: { label: "Diproses", variant: "secondary" },
-  menunggu: { label: "Menunggu", variant: "outline" },
-  batal: { label: "Dibatalkan", variant: "destructive" },
-};
-
 const formatCurrency = (value: number) =>
-  value.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+  value.toLocaleString("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  });
 
 export default async function DashboardPage() {
-  const assetSummary = await getRawMaterialAssetSummary();
+  const [assetSummary, analytics] = await Promise.all([
+    getRawMaterialAssetSummary(),
+    getDashboardAnalyticsSummary(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -70,117 +52,139 @@ export default async function DashboardPage() {
               </p>
             </CardContent>
           </Card>
-
-          {statCards.map((stat) => {
-            const Icon = iconMap[stat.icon] ?? Package;
-            return (
-              <Card key={stat.id} className="relative overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {stat.title}
-                  </CardTitle>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                    <Icon className="h-5 w-5 text-primary" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-foreground">
-                    {stat.value}
-                  </p>
-                  <div className="mt-1 flex items-center gap-1.5">
-                    {stat.changeType === "positive" && (
-                      <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-                    )}
-                    {stat.changeType === "negative" && (
-                      <TrendingDown className="h-3.5 w-3.5 text-red-500" />
-                    )}
-                    {stat.changeType === "neutral" && (
-                      <Minus className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-                    <span
-                      className={cn(
-                        "text-xs font-medium",
-                        stat.changeType === "positive" && "text-emerald-500",
-                        stat.changeType === "negative" && "text-red-500",
-                        stat.changeType === "neutral" && "text-muted-foreground"
-                      )}
-                    >
-                      {stat.change}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {stat.description}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
         </div>
       </section>
 
-      {/* Recent Orders */}
-      <section>
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Pesanan Terbaru</CardTitle>
+            <CardTitle>Top 5 Nilai Aset Bahan</CardTitle>
             <CardDescription>
-              5 pesanan terbaru dari sistem penjualan
+              Item persediaan dengan nilai aset terbesar
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="pb-3 text-left font-medium text-muted-foreground">
-                      ID Pesanan
-                    </th>
-                    <th className="pb-3 text-left font-medium text-muted-foreground">
-                      Pelanggan
-                    </th>
-                    <th className="pb-3 text-left font-medium text-muted-foreground">
-                      Produk
-                    </th>
-                    <th className="pb-3 text-left font-medium text-muted-foreground">
-                      Total
-                    </th>
-                    <th className="pb-3 text-left font-medium text-muted-foreground">
-                      Status
-                    </th>
-                    <th className="pb-3 text-left font-medium text-muted-foreground">
-                      Tanggal
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {recentOrders.map((order) => {
-                    const status = statusConfig[order.status];
-                    return (
-                      <tr
-                        key={order.id}
-                        className="transition-colors hover:bg-muted/50"
-                      >
-                        <td className="py-3 font-mono text-xs text-muted-foreground">
-                          {order.id}
-                        </td>
-                        <td className="py-3 font-medium">{order.customer}</td>
-                        <td className="py-3 text-muted-foreground">
-                          {order.product}
-                        </td>
-                        <td className="py-3 font-medium">{order.amount}</td>
-                        <td className="py-3">
-                          <Badge variant={status.variant}>
-                            {status.label}
-                          </Badge>
-                        </td>
-                        <td className="py-3 text-muted-foreground">
-                          {order.date}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <CardContent className="space-y-2">
+            {analytics.topAssetItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Belum ada data aset.
+              </p>
+            ) : (
+              analytics.topAssetItems.map((item) => (
+                <div
+                  key={item.itemId}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <div>
+                    <p className="font-medium">{item.itemName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.qtyOnHand.toLocaleString("id-ID")} {item.unitCode}
+                    </p>
+                  </div>
+                  <p className="font-semibold">
+                    {formatCurrency(item.assetValue)}
+                  </p>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Tren Biaya Bahan</CardTitle>
+            <CardDescription>Perubahan harga terbaru per bahan</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {analytics.materialCostTrends.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Belum ada data tren biaya.
+              </p>
+            ) : (
+              analytics.materialCostTrends.map((item) => (
+                <div
+                  key={item.itemId}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <div>
+                    <p className="font-medium">{item.itemName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCurrency(item.latestPrice)} / {item.unitCode}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={
+                      item.deltaPercent !== null && item.deltaPercent > 0
+                        ? "destructive"
+                        : "secondary"
+                    }
+                  >
+                    {item.deltaPercent === null
+                      ? "Baru"
+                      : `${item.deltaPercent >= 0 ? "+" : ""}${item.deltaPercent.toFixed(1)}%`}
+                  </Badge>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Margin Produk</CardTitle>
+            <CardDescription>
+              Tertinggi vs terendah berdasarkan HPP
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                Tertinggi
+              </p>
+              {analytics.highestMargins.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Belum ada data margin.
+                </p>
+              ) : (
+                analytics.highestMargins.map((item) => (
+                  <div
+                    key={`h-${item.productVariantId}`}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <p className="font-medium">{item.productName}</p>
+                    <p className="text-emerald-600">
+                      {item.marginPercent.toFixed(1)}%
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                Terendah
+              </p>
+              {analytics.lowestMargins.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Belum ada data margin.
+                </p>
+              ) : (
+                analytics.lowestMargins.map((item) => (
+                  <div
+                    key={`l-${item.productVariantId}`}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <p className="font-medium">{item.productName}</p>
+                    <p
+                      className={cn(
+                        item.marginPercent < 0
+                          ? "text-destructive"
+                          : "text-amber-600"
+                      )}
+                    >
+                      {item.marginPercent.toFixed(1)}%
+                    </p>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

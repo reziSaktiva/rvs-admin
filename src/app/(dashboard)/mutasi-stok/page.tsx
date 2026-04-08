@@ -9,12 +9,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PurchaseMaterialForm } from "@/components/inventory/purchase-material-form";
-import { getInventoryMovementHistory, getInventoryMovementOptions } from "@/lib/inventory";
+import {
+  getInventoryMovementHistory,
+  getInventoryMovementOptions,
+  INVENTORY_MOVEMENT_TYPES,
+  type StockMovementType,
+} from "@/lib/inventory";
 
-type PembelianPageProps = {
+type MutasiStokPageProps = {
   searchParams?: Promise<{
     itemId?: string;
+    movementType?: string;
     referenceKeyword?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -33,6 +38,26 @@ const formatDateTime = (value: string | null) => {
   return date.toLocaleString("id-ID");
 };
 
+const movementTypeLabel: Record<StockMovementType, string> = {
+  opening: "Saldo awal",
+  purchase: "Pembelian",
+  production_in: "Masuk produksi",
+  production_out: "Keluar produksi",
+  sale_out: "Keluar penjualan",
+  adjustment_in: "Penyesuaian masuk",
+  adjustment_out: "Penyesuaian keluar",
+  return_in: "Retur masuk",
+  return_out: "Retur keluar",
+  transfer_in: "Transfer masuk",
+  transfer_out: "Transfer keluar",
+};
+
+const toDateTimeLocal = (value: Date) => {
+  const offset = value.getTimezoneOffset();
+  const localDate = new Date(value.getTime() - offset * 60_000);
+  return localDate.toISOString().slice(0, 16);
+};
+
 const buildQueryString = (params: Record<string, string | undefined>) => {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -41,7 +66,7 @@ const buildQueryString = (params: Record<string, string | undefined>) => {
   return query.toString();
 };
 
-export default async function PembelianPage({ searchParams }: PembelianPageProps) {
+export default async function MutasiStokPage({ searchParams }: MutasiStokPageProps) {
   const params = (await searchParams) ?? {};
   const parsedPage = Number(params.page ?? "1");
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
@@ -49,11 +74,16 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
   const pageSize = [25, 50, 100].includes(parsedPageSize) ? parsedPageSize : 25;
   const offset = (page - 1) * pageSize;
 
-  const [movementOptions, rows] = await Promise.all([
+  const isValidMovementType =
+    !!params.movementType &&
+    INVENTORY_MOVEMENT_TYPES.includes(params.movementType as StockMovementType);
+  const movementType = isValidMovementType ? (params.movementType as StockMovementType) : undefined;
+
+  const [movementOptions, movementRows] = await Promise.all([
     getInventoryMovementOptions(),
     getInventoryMovementHistory({
-      movementType: "purchase",
       itemId: params.itemId || undefined,
+      movementType,
       referenceKeyword: params.referenceKeyword || undefined,
       dateFrom: params.dateFrom || undefined,
       dateTo: params.dateTo || undefined,
@@ -61,69 +91,87 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
       offset,
     }),
   ]);
-
-  const hasNextPage = rows.length > pageSize;
-  const purchases = hasNextPage ? rows.slice(0, pageSize) : rows;
-  const totalPurchaseValue = purchases.reduce((sum, row) => sum + (row.valueDelta ?? 0), 0);
-  const totalQty = purchases.reduce((sum, row) => sum + row.qtyDelta, 0);
+  const hasNextPage = movementRows.length > pageSize;
+  const movements = hasNextPage ? movementRows.slice(0, pageSize) : movementRows;
 
   const baseQuery = {
     itemId: params.itemId,
+    movementType: isValidMovementType ? params.movementType : undefined,
     referenceKeyword: params.referenceKeyword,
     dateFrom: params.dateFrom,
     dateTo: params.dateTo,
     pageSize: String(pageSize),
   };
 
+  const now = new Date();
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const presets = [
+    {
+      label: "Hari ini",
+      href: `/mutasi-stok?${buildQueryString({
+        ...baseQuery,
+        dateFrom: toDateTimeLocal(startOfToday),
+        dateTo: toDateTimeLocal(endOfToday),
+        page: "1",
+      })}`,
+    },
+    {
+      label: "7 hari terakhir",
+      href: `/mutasi-stok?${buildQueryString({
+        ...baseQuery,
+        dateFrom: toDateTimeLocal(sevenDaysAgo),
+        dateTo: toDateTimeLocal(now),
+        page: "1",
+      })}`,
+    },
+    {
+      label: "Bulan ini",
+      href: `/mutasi-stok?${buildQueryString({
+        ...baseQuery,
+        dateFrom: toDateTimeLocal(firstDayThisMonth),
+        dateTo: toDateTimeLocal(now),
+        page: "1",
+      })}`,
+    },
+  ];
+
+  const exportCsvHref = `/api/inventory/movements?${buildQueryString({
+    itemId: params.itemId,
+    movementType: isValidMovementType ? params.movementType : undefined,
+    referenceKeyword: params.referenceKeyword,
+    dateFrom: params.dateFrom,
+    dateTo: params.dateTo,
+    limit: "5000",
+    offset: "0",
+    format: "csv",
+  })}`;
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Pembelian Bahan</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Riwayat Mutasi Stok</h1>
           <p className="text-sm text-muted-foreground">
-            Catat transaksi pembelian bahan untuk menambah stok dan memperbarui average cost.
+            Lihat jejak mutasi stok bahan baku berdasarkan tanggal, tipe, item, dan referensi.
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link href="/mutasi-stok?movementType=purchase">Lihat di Mutasi Stok</Link>
+          <Link href="/bahan-baku">Kembali ke Bahan Baku</Link>
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Transaksi Ditampilkan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{purchases.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Total Qty Masuk</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{totalQty.toLocaleString("id-ID")}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Total Nilai Pembelian</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{formatCurrency(totalPurchaseValue)}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <PurchaseMaterialForm items={movementOptions.items} />
-
       <Card>
         <CardHeader>
-          <CardTitle>Filter Riwayat Pembelian</CardTitle>
+          <CardTitle>Filter</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="grid grid-cols-1 gap-3 md:grid-cols-5" method="get">
+          <form className="grid grid-cols-1 gap-3 md:grid-cols-6" method="get">
             <div className="space-y-1">
               <label className="text-sm font-medium">Item</label>
               <select
@@ -141,7 +189,23 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium">Dari tanggal</label>
+              <label className="text-sm font-medium">Tipe mutasi</label>
+              <select
+                name="movementType"
+                defaultValue={params.movementType ?? ""}
+                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              >
+                <option value="">Semua tipe</option>
+                {INVENTORY_MOVEMENT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {movementTypeLabel[type]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Tanggal dari</label>
               <input
                 name="dateFrom"
                 type="datetime-local"
@@ -151,7 +215,7 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium">Sampai tanggal</label>
+              <label className="text-sm font-medium">Tanggal sampai</label>
               <input
                 name="dateTo"
                 type="datetime-local"
@@ -166,7 +230,7 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
                 name="referenceKeyword"
                 type="text"
                 defaultValue={params.referenceKeyword ?? ""}
-                placeholder="supplier / nomor dokumen"
+                placeholder="PO-..., production, catatan..."
                 className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               />
             </div>
@@ -186,10 +250,18 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
 
             <input type="hidden" name="page" value="1" />
 
-            <div className="md:col-span-5 flex items-center gap-2">
+            <div className="md:col-span-6 flex flex-wrap items-center gap-2">
               <Button type="submit">Terapkan Filter</Button>
               <Button asChild type="button" variant="ghost">
-                <Link href="/pembelian">Reset</Link>
+                <Link href="/mutasi-stok">Reset</Link>
+              </Button>
+              {presets.map((preset) => (
+                <Button asChild key={preset.label} type="button" variant="outline" size="sm">
+                  <Link href={preset.href}>{preset.label}</Link>
+                </Button>
+              ))}
+              <Button asChild type="button" variant="secondary" size="sm">
+                <Link href={exportCsvHref}>Export CSV</Link>
               </Button>
             </div>
           </form>
@@ -198,7 +270,7 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
 
       <Card>
         <CardHeader>
-          <CardTitle>Riwayat Pembelian ({purchases.length})</CardTitle>
+          <CardTitle>Daftar Mutasi ({movements.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -206,46 +278,56 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
               <TableRow>
                 <TableHead>Waktu</TableHead>
                 <TableHead>Item</TableHead>
+                <TableHead>Tipe</TableHead>
                 <TableHead>Qty</TableHead>
-                <TableHead>Unit Cost</TableHead>
-                <TableHead>Value</TableHead>
+                <TableHead>Unit cost</TableHead>
+                <TableHead>Value delta</TableHead>
                 <TableHead>Referensi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {purchases.length === 0 ? (
+              {movements.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    Belum ada riwayat pembelian sesuai filter.
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    Tidak ada data mutasi sesuai filter.
                   </TableCell>
                 </TableRow>
               ) : (
-                purchases.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{formatDateTime(row.occurredAt)}</TableCell>
-                    <TableCell>{row.item.name}</TableCell>
+                movements.map((movement) => (
+                  <TableRow key={movement.id}>
+                    <TableCell>{formatDateTime(movement.occurredAt)}</TableCell>
+                    <TableCell>{movement.item.name}</TableCell>
+                    <TableCell>{movementTypeLabel[movement.movementType]}</TableCell>
                     <TableCell>
-                      {row.qtyDelta.toLocaleString("id-ID")} {row.unit.code}
+                      {movement.qtyDelta.toLocaleString("id-ID")} {movement.unit.code}
                     </TableCell>
-                    <TableCell>{row.unitCost === null ? "-" : formatCurrency(row.unitCost)}</TableCell>
-                    <TableCell>{row.valueDelta === null ? "-" : formatCurrency(row.valueDelta)}</TableCell>
                     <TableCell>
-                      {[row.referenceType, row.referenceId].filter(Boolean).join(" / ") || "-"}
+                      {movement.unitCost === null ? "-" : formatCurrency(movement.unitCost)}
+                    </TableCell>
+                    <TableCell>
+                      {movement.valueDelta === null ? "-" : formatCurrency(movement.valueDelta)}
+                    </TableCell>
+                    <TableCell>
+                      {[movement.referenceType, movement.referenceId].filter(Boolean).join(" / ") || "-"}
                     </TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
-
           <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
             <p>
-              Halaman {page} · Menampilkan {purchases.length} transaksi
+              Halaman {page} · Menampilkan {movements.length} data
             </p>
             <div className="flex items-center gap-2">
-              <Button asChild variant="outline" size="sm" disabled={page <= 1}>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+              >
                 <Link
-                  href={`/pembelian?${buildQueryString({
+                  href={`/mutasi-stok?${buildQueryString({
                     ...baseQuery,
                     page: String(Math.max(1, page - 1)),
                   })}`}
@@ -253,9 +335,14 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
                   Sebelumnya
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="sm" disabled={!hasNextPage}>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                disabled={!hasNextPage}
+              >
                 <Link
-                  href={`/pembelian?${buildQueryString({
+                  href={`/mutasi-stok?${buildQueryString({
                     ...baseQuery,
                     page: String(page + 1),
                   })}`}

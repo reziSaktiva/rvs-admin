@@ -13,6 +13,17 @@ type InventoryMovementFormProps = {
   movementTypes: StockMovementType[];
 };
 
+const INCOMING_MOVEMENT_TYPES: StockMovementType[] = [
+  "opening",
+  "purchase",
+  "production_in",
+  "adjustment_in",
+  "return_in",
+  "transfer_in",
+];
+
+const REQUIRED_UNIT_COST_MOVEMENT_TYPES: StockMovementType[] = ["opening", "purchase"];
+
 const movementTypeLabel: Record<StockMovementType, string> = {
   opening: "Saldo awal",
   purchase: "Pembelian",
@@ -33,7 +44,7 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
   const [movementType, setMovementType] = useState<StockMovementType>(
     movementTypes[0] ?? "purchase"
   );
-  const [qtyDelta, setQtyDelta] = useState("");
+  const [qtyInput, setQtyInput] = useState("");
   const [unitCost, setUnitCost] = useState("");
   const [referenceType, setReferenceType] = useState("");
   const [referenceId, setReferenceId] = useState("");
@@ -47,13 +58,49 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
     [items, itemId]
   );
 
-  const isIncoming = movementType.endsWith("_in") || movementType === "opening" || movementType === "purchase";
+  const isIncoming = INCOMING_MOVEMENT_TYPES.includes(movementType);
+  const quantityValue = Number(qtyInput);
+  const isQuantityValid = Number.isFinite(quantityValue) && quantityValue > 0;
+  const normalizedQtyDelta = isQuantityValid
+    ? Math.abs(quantityValue) * (isIncoming ? 1 : -1)
+    : NaN;
+  const requiresUnitCost = REQUIRED_UNIT_COST_MOVEMENT_TYPES.includes(movementType);
+  const hasUnitCost = unitCost.trim().length > 0 && Number(unitCost) > 0;
+  const canEstimateProjectedStock =
+    !!selectedItem &&
+    !!selectedItem.balance &&
+    selectedItem.balance.unit.id === selectedItem.defaultUnit.id &&
+    isQuantityValid;
+  const projectedQty = canEstimateProjectedStock
+    ? selectedItem.balance!.qtyOnHand + normalizedQtyDelta
+    : null;
+  const isPotentialNegativeStock = projectedQty !== null && projectedQty < 0;
+  const isSubmitBlocked =
+    !selectedItem ||
+    !isQuantityValid ||
+    isPotentialNegativeStock ||
+    (requiresUnitCost && !hasUnitCost);
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedItem) {
       setIsError(true);
       setMessage("Pilih bahan baku terlebih dahulu");
+      return;
+    }
+    if (!isQuantityValid) {
+      setIsError(true);
+      setMessage("Qty harus lebih besar dari 0");
+      return;
+    }
+    if (requiresUnitCost && !hasUnitCost) {
+      setIsError(true);
+      setMessage("Harga per unit wajib diisi untuk saldo awal dan pembelian");
+      return;
+    }
+    if (isPotentialNegativeStock) {
+      setIsError(true);
+      setMessage("Mutasi keluar menyebabkan stok menjadi negatif");
       return;
     }
 
@@ -65,7 +112,7 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
       const payload = {
         itemId: selectedItem.id,
         movementType,
-        qtyDelta: Number(qtyDelta),
+        qtyDelta: normalizedQtyDelta,
         unitId: selectedItem.defaultUnit.id,
         unitCost: unitCost.trim() ? Number(unitCost) : undefined,
         referenceType: referenceType.trim() || undefined,
@@ -86,7 +133,7 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
 
       setMessage("Mutasi stok berhasil disimpan");
       setIsError(false);
-      setQtyDelta("");
+      setQtyInput("");
       setUnitCost("");
       setReferenceType("");
       setReferenceId("");
@@ -148,21 +195,29 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
 
             <div className="space-y-1.5">
               <Label htmlFor="qtyDelta">
-                Qty ({selectedItem?.defaultUnit.code ?? "-"})
+                Qty ({selectedItem?.defaultUnit.code ?? "-"}) - input angka positif
               </Label>
               <Input
                 id="qtyDelta"
                 type="number"
                 step="0.0001"
-                value={qtyDelta}
-                onChange={(e) => setQtyDelta(e.target.value)}
+                value={qtyInput}
+                onChange={(e) => setQtyInput(e.target.value)}
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                Arah qty otomatis: {isIncoming ? "masuk (+)" : "keluar (-)"}.
+              </p>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="unitCost">
-                Harga per unit {isIncoming ? "(disarankan)" : "(opsional)"}
+                Harga per unit{" "}
+                {requiresUnitCost
+                  ? "(wajib untuk saldo awal/pembelian)"
+                  : isIncoming
+                    ? "(disarankan)"
+                    : "(opsional)"}
               </Label>
               <Input
                 id="unitCost"
@@ -171,6 +226,7 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
                 value={unitCost}
                 onChange={(e) => setUnitCost(e.target.value)}
                 placeholder="contoh: 12500"
+                required={requiresUnitCost}
               />
             </div>
 
@@ -205,9 +261,25 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
             </div>
 
             <div className="md:col-span-2 flex items-center gap-3">
-              <Button disabled={isSubmitting} type="submit">
+              <Button disabled={isSubmitting || isSubmitBlocked} type="submit">
                 {isSubmitting ? "Menyimpan..." : "Simpan mutasi"}
               </Button>
+              {selectedItem?.balance && (
+                <p className="text-xs text-muted-foreground">
+                  Stok saat ini: {selectedItem.balance.qtyOnHand.toLocaleString("id-ID")}{" "}
+                  {selectedItem.balance.unit.code}
+                </p>
+              )}
+            </div>
+
+            {isPotentialNegativeStock && (
+              <p className="md:col-span-2 text-sm text-destructive">
+                Warning: mutasi ini membuat proyeksi stok menjadi{" "}
+                {projectedQty?.toLocaleString("id-ID")} {selectedItem?.defaultUnit.code}.
+              </p>
+            )}
+
+            <div className="md:col-span-2 flex items-center gap-3">
               {message && (
                 <p className={`text-sm ${isError ? "text-destructive" : "text-emerald-600"}`}>
                   {message}

@@ -1,11 +1,10 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, gte, ilike, inArray, lte, or, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import {
   costItemInventoryBalances,
   costItemInventoryMovements,
   costItemPrices,
   costItems,
-  unitConversions,
 } from "./db/drizzle/schema";
 
 type UnitSummary = {
@@ -35,6 +34,10 @@ export type InventoryMovementOptionItem = {
   id: string;
   name: string;
   defaultUnit: UnitSummary;
+  balance: {
+    qtyOnHand: number;
+    unit: UnitSummary;
+  } | null;
 };
 
 export type InventoryMovementOptions = {
@@ -84,6 +87,34 @@ export type RecordInventoryMovementResult = {
     newAssetValue: number;
     balanceUnitId: string;
   };
+};
+
+export type InventoryMovementHistoryFilters = {
+  itemId?: string;
+  movementType?: StockMovementType;
+  referenceKeyword?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export type InventoryMovementHistoryItem = {
+  id: string;
+  occurredAt: string | null;
+  movementType: StockMovementType;
+  qtyDelta: number;
+  unitCost: number | null;
+  valueDelta: number | null;
+  referenceType: string | null;
+  referenceId: string | null;
+  note: string | null;
+  item: {
+    id: string;
+    name: string;
+    itemType: "raw_material" | "packaging" | "finished_good" | "service";
+  };
+  unit: UnitSummary;
 };
 
 export const INVENTORY_MOVEMENT_TYPES: StockMovementType[] = [
@@ -209,23 +240,52 @@ export const getRawMaterialAssetSummary = async (): Promise<RawMaterialAssetSumm
 };
 
 export const getInventoryMovementOptions = async (): Promise<InventoryMovementOptions> => {
-  const items = await db.query.costItems.findMany({
-    where: and(
-      eq(costItems.isActive, true),
-      inArray(costItems.itemType, ["raw_material", "packaging"])
-    ),
-    with: {
-      defaultUnit: {
-        columns: {
-          id: true,
-          code: true,
-          name: true,
-          dimension: true,
+  const [items, balances] = await Promise.all([
+    db.query.costItems.findMany({
+      where: and(
+        eq(costItems.isActive, true),
+        inArray(costItems.itemType, ["raw_material", "packaging"])
+      ),
+      with: {
+        defaultUnit: {
+          columns: {
+            id: true,
+            code: true,
+            name: true,
+            dimension: true,
+          },
         },
       },
-    },
-    orderBy: (table) => [asc(table.name)],
-  });
+      orderBy: (table) => [asc(table.name)],
+    }),
+    db.query.costItemInventoryBalances.findMany({
+      with: {
+        unit: {
+          columns: {
+            id: true,
+            code: true,
+            name: true,
+            dimension: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  const balanceByItemId = new Map(
+    balances.map((balance) => [
+      balance.itemId,
+      {
+        qtyOnHand: toNumber(balance.qtyOnHand, 0),
+        unit: {
+          id: balance.unit.id,
+          code: balance.unit.code,
+          name: balance.unit.name,
+          dimension: balance.unit.dimension,
+        },
+      },
+    ])
+  );
 
   return {
     items: items.map((item) => ({
@@ -237,9 +297,86 @@ export const getInventoryMovementOptions = async (): Promise<InventoryMovementOp
         name: item.defaultUnit.name,
         dimension: item.defaultUnit.dimension,
       },
+      balance: balanceByItemId.get(item.id) ?? null,
     })),
     movementTypes: INVENTORY_MOVEMENT_TYPES,
   };
+};
+
+export const getInventoryMovementHistory = async (
+  filters: InventoryMovementHistoryFilters = {}
+): Promise<InventoryMovementHistoryItem[]> => {
+  const whereClauses: SQL[] = [];
+
+  if (filters.itemId) {
+    whereClauses.push(eq(costItemInventoryMovements.itemId, filters.itemId));
+  }
+  if (filters.movementType) {
+    whereClauses.push(eq(costItemInventoryMovements.movementType, filters.movementType));
+  }
+  if (filters.referenceKeyword?.trim()) {
+    const keywordPattern = `%${filters.referenceKeyword.trim()}%`;
+    whereClauses.push(
+      or(
+        ilike(costItemInventoryMovements.referenceType, keywordPattern),
+        ilike(costItemInventoryMovements.referenceId, keywordPattern),
+        ilike(costItemInventoryMovements.note, keywordPattern)
+      )!
+    );
+  }
+  if (filters.dateFrom) {
+    whereClauses.push(gte(costItemInventoryMovements.occurredAt, filters.dateFrom));
+  }
+  if (filters.dateTo) {
+    whereClauses.push(lte(costItemInventoryMovements.occurredAt, filters.dateTo));
+  }
+
+  const rows = await db.query.costItemInventoryMovements.findMany({
+    where: whereClauses.length > 0 ? and(...whereClauses) : undefined,
+    with: {
+      item: {
+        columns: {
+          id: true,
+          name: true,
+          itemType: true,
+        },
+      },
+      unit: {
+        columns: {
+          id: true,
+          code: true,
+          name: true,
+          dimension: true,
+        },
+      },
+    },
+    orderBy: (table, { desc: descOrder }) => [descOrder(table.occurredAt), descOrder(table.createdAt)],
+    limit: filters.limit ?? 100,
+    offset: filters.offset ?? 0,
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    occurredAt: row.occurredAt ?? null,
+    movementType: row.movementType,
+    qtyDelta: toNumber(row.qtyDelta, 0),
+    unitCost: row.unitCost === null ? null : toNumber(row.unitCost, 0),
+    valueDelta: row.valueDelta === null ? null : toNumber(row.valueDelta, 0),
+    referenceType: row.referenceType ?? null,
+    referenceId: row.referenceId ?? null,
+    note: row.note ?? null,
+    item: {
+      id: row.item.id,
+      name: row.item.name,
+      itemType: row.item.itemType,
+    },
+    unit: {
+      id: row.unit.id,
+      code: row.unit.code,
+      name: row.unit.name,
+      dimension: row.unit.dimension,
+    },
+  }));
 };
 
 export const recordInventoryMovement = async (

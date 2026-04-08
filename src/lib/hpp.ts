@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { db } from "./db";
 import { recipes, unitConversions } from "./db/drizzle/schema";
 
@@ -57,6 +57,14 @@ export type CalculateHppResult = {
   };
   materials: MaterialCostBreakdown[];
   additionalCosts: AdditionalCostBreakdown[];
+};
+
+export type HppRecipeOption = {
+  recipeId: string;
+  recipeName: string;
+  status: "draft" | "active" | "archived";
+  productName: string;
+  variantSku: string | null;
 };
 
 const toNumber = (value: string | number | null | undefined, fallback = 0): number => {
@@ -305,4 +313,32 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
     materials,
     additionalCosts,
   };
+};
+
+export const getHppRecipeOptions = async (): Promise<HppRecipeOption[]> => {
+  const rows = await db.query.recipes.findMany({
+    with: {
+      productVariant: {
+        columns: {
+          sku: true,
+        },
+        with: {
+          product: {
+            columns: {
+              name: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: (table) => [asc(table.name), asc(table.createdAt)],
+  });
+
+  return rows.map((row) => ({
+    recipeId: row.id,
+    recipeName: row.name,
+    status: row.status,
+    productName: row.productVariant.product.name,
+    variantSku: row.productVariant.sku ?? null,
+  }));
 };

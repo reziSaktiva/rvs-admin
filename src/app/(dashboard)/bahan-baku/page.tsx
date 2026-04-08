@@ -1,4 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -27,6 +29,11 @@ export default async function BahanBakuPage() {
         <p className="text-sm text-muted-foreground">
           Pantau stok dan nilai aset persediaan, lalu catat mutasi bahan secara berkala.
         </p>
+        <div className="mt-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href="/mutasi-stok">Buka Riwayat Mutasi</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
