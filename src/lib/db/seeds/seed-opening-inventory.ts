@@ -4,8 +4,6 @@ import { db } from "@/lib/db";
 import {
   costItemInventoryBalances,
   costItemInventoryMovements,
-  costItems,
-  units,
 } from "@/lib/db/drizzle/schema";
 
 type OpeningInventorySeed = {
