@@ -104,17 +104,17 @@ export default async function MutasiStokPage({ searchParams }: MutasiStokPagePro
   };
 
   const now = new Date();
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfToday = new Date();
+  const endOfToday = new Date(now);
   endOfToday.setHours(23, 59, 59, 999);
-  const startOfToday = new Date();
+  const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
 
   const presets = [
     {
       label: "Hari ini",
-      href: `/mutasi-stok?${buildQueryString({
+      href: `/riwayat-stok?${buildQueryString({
         ...baseQuery,
         dateFrom: toDateTimeLocal(startOfToday),
         dateTo: toDateTimeLocal(endOfToday),
@@ -123,7 +123,7 @@ export default async function MutasiStokPage({ searchParams }: MutasiStokPagePro
     },
     {
       label: "7 hari terakhir",
-      href: `/mutasi-stok?${buildQueryString({
+      href: `/riwayat-stok?${buildQueryString({
         ...baseQuery,
         dateFrom: toDateTimeLocal(sevenDaysAgo),
         dateTo: toDateTimeLocal(now),
@@ -132,7 +132,7 @@ export default async function MutasiStokPage({ searchParams }: MutasiStokPagePro
     },
     {
       label: "Bulan ini",
-      href: `/mutasi-stok?${buildQueryString({
+      href: `/riwayat-stok?${buildQueryString({
         ...baseQuery,
         dateFrom: toDateTimeLocal(firstDayThisMonth),
         dateTo: toDateTimeLocal(now),
@@ -253,7 +253,7 @@ export default async function MutasiStokPage({ searchParams }: MutasiStokPagePro
             <div className="md:col-span-6 flex flex-wrap items-center gap-2">
               <Button type="submit">Terapkan Filter</Button>
               <Button asChild type="button" variant="ghost">
-                <Link href="/mutasi-stok">Reset</Link>
+                <Link href="/riwayat-stok">Reset</Link>
               </Button>
               {presets.map((preset) => (
                 <Button asChild key={preset.label} type="button" variant="outline" size="sm">
@@ -327,7 +327,7 @@ export default async function MutasiStokPage({ searchParams }: MutasiStokPagePro
                 disabled={page <= 1}
               >
                 <Link
-                  href={`/mutasi-stok?${buildQueryString({
+                  href={`/riwayat-stok?${buildQueryString({
                     ...baseQuery,
                     page: String(Math.max(1, page - 1)),
                   })}`}
@@ -342,7 +342,7 @@ export default async function MutasiStokPage({ searchParams }: MutasiStokPagePro
                 disabled={!hasNextPage}
               >
                 <Link
-                  href={`/mutasi-stok?${buildQueryString({
+                  href={`/riwayat-stok?${buildQueryString({
                     ...baseQuery,
                     page: String(page + 1),
                   })}`}

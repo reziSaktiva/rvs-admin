@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { InventoryMovementOptionItem, StockMovementType } from "@/lib/inventory";
@@ -27,15 +27,15 @@ const REQUIRED_UNIT_COST_MOVEMENT_TYPES: StockMovementType[] = ["opening", "purc
 const movementTypeLabel: Record<StockMovementType, string> = {
   opening: "Saldo awal",
   purchase: "Pembelian",
-  production_in: "Masuk produksi",
-  production_out: "Keluar produksi",
-  sale_out: "Keluar penjualan",
-  adjustment_in: "Penyesuaian masuk",
-  adjustment_out: "Penyesuaian keluar",
+  production_in: "Masuk dari produksi",
+  production_out: "Keluar untuk produksi",
+  sale_out: "Keluar (terjual / pakai jualan)",
+  adjustment_in: "Penyesuaian — tambah stok",
+  adjustment_out: "Penyesuaian — kurangi stok",
   return_in: "Retur masuk",
   return_out: "Retur keluar",
-  transfer_in: "Transfer masuk",
-  transfer_out: "Transfer keluar",
+  transfer_in: "Transfer masuk gudang",
+  transfer_out: "Transfer keluar gudang",
 };
 
 export function InventoryMovementForm({ items, movementTypes }: InventoryMovementFormProps) {
@@ -85,22 +85,22 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
     event.preventDefault();
     if (!selectedItem) {
       setIsError(true);
-      setMessage("Pilih bahan baku terlebih dahulu");
+      setMessage("Pilih bahan terlebih dahulu");
       return;
     }
     if (!isQuantityValid) {
       setIsError(true);
-      setMessage("Qty harus lebih besar dari 0");
+      setMessage("Jumlah harus lebih besar dari nol");
       return;
     }
     if (requiresUnitCost && !hasUnitCost) {
       setIsError(true);
-      setMessage("Harga per unit wajib diisi untuk saldo awal dan pembelian");
+      setMessage("Untuk saldo awal dan pembelian, harga per satuan wajib diisi");
       return;
     }
     if (isPotentialNegativeStock) {
       setIsError(true);
-      setMessage("Mutasi keluar menyebabkan stok menjadi negatif");
+      setMessage("Stok tidak cukup: keluar melebihi jumlah yang tersedia");
       return;
     }
 
@@ -128,10 +128,10 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
 
       const result = (await response.json()) as { success: boolean; message?: string };
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "Gagal menyimpan mutasi stok");
+        throw new Error(result.message ?? "Gagal menyimpan perubahan stok");
       }
 
-      setMessage("Mutasi stok berhasil disimpan");
+      setMessage("Perubahan stok berhasil disimpan");
       setIsError(false);
       setQtyInput("");
       setUnitCost("");
@@ -141,7 +141,7 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
       router.refresh();
     } catch (error) {
       setIsError(true);
-      setMessage(error instanceof Error ? error.message : "Gagal menyimpan mutasi stok");
+      setMessage(error instanceof Error ? error.message : "Gagal menyimpan perubahan stok");
     } finally {
       setIsSubmitting(false);
     }
@@ -150,17 +150,22 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Input Mutasi Stok</CardTitle>
+        <CardTitle>Perubahan stok</CardTitle>
+        <CardDescription>
+          Catat masuk atau keluar bahan. Untuk pembelian rutin, Anda juga bisa memakai halaman
+          Pembelian bahan agar lebih terstruktur.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Belum ada item bahan baku aktif. Tambahkan `cost_items` terlebih dahulu.
+            Belum ada bahan aktif di daftar. Gunakan formulir &quot;Tambah bahan baru&quot; di bawah
+            untuk menambahkan bahan terlebih dahulu.
           </p>
         ) : (
           <form className="grid gap-3 md:grid-cols-2" onSubmit={onSubmit}>
             <div className="space-y-1.5">
-              <Label htmlFor="itemId">Item bahan</Label>
+              <Label htmlFor="itemId">Pilih bahan</Label>
               <select
                 id="itemId"
                 className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
@@ -177,7 +182,7 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="movementType">Tipe mutasi</Label>
+              <Label htmlFor="movementType">Jenis perubahan</Label>
               <select
                 id="movementType"
                 className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
@@ -195,7 +200,7 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
 
             <div className="space-y-1.5">
               <Label htmlFor="qtyDelta">
-                Qty ({selectedItem?.defaultUnit.code ?? "-"}) - input angka positif
+                Jumlah ({selectedItem?.defaultUnit.code ?? "satuan"})
               </Label>
               <Input
                 id="qtyDelta"
@@ -206,18 +211,19 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
                 required
               />
               <p className="text-xs text-muted-foreground">
-                Arah qty otomatis: {isIncoming ? "masuk (+)" : "keluar (-)"}.
+                Tulis angka positif saja. Sistem menganggap ini sebagai stok{" "}
+                {isIncoming ? "masuk" : "keluar"}.
               </p>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="unitCost">
-                Harga per unit{" "}
+                Harga per satuan{" "}
                 {requiresUnitCost
-                  ? "(wajib untuk saldo awal/pembelian)"
+                  ? "(wajib untuk saldo awal & pembelian)"
                   : isIncoming
-                    ? "(disarankan)"
-                    : "(opsional)"}
+                    ? "(disarankan diisi)"
+                    : "(boleh kosong)"}
               </Label>
               <Input
                 id="unitCost"
@@ -231,42 +237,42 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="referenceType">Reference type</Label>
+              <Label htmlFor="referenceType">Jenis rujukan (opsional)</Label>
               <Input
                 id="referenceType"
                 value={referenceType}
                 onChange={(e) => setReferenceType(e.target.value)}
-                placeholder="purchase_order / production"
+                placeholder="Contoh: nota_pembelian, produksi"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="referenceId">Reference ID</Label>
+              <Label htmlFor="referenceId">Nomor / kode rujukan (opsional)</Label>
               <Input
                 id="referenceId"
                 value={referenceId}
                 onChange={(e) => setReferenceId(e.target.value)}
-                placeholder="PO-2026-001"
+                placeholder="Contoh: PO-2026-001"
               />
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
-              <Label htmlFor="note">Catatan</Label>
+              <Label htmlFor="note">Catatan (opsional)</Label>
               <Input
                 id="note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Catatan tambahan mutasi"
+                placeholder="Contoh: koreksi hitung fisik gudang"
               />
             </div>
 
-            <div className="md:col-span-2 flex items-center gap-3">
+            <div className="md:col-span-2 flex flex-wrap items-center gap-3">
               <Button disabled={isSubmitting || isSubmitBlocked} type="submit">
-                {isSubmitting ? "Menyimpan..." : "Simpan mutasi"}
+                {isSubmitting ? "Menyimpan..." : "Simpan perubahan"}
               </Button>
               {selectedItem?.balance && (
                 <p className="text-xs text-muted-foreground">
-                  Stok saat ini: {selectedItem.balance.qtyOnHand.toLocaleString("id-ID")}{" "}
+                  Stok sekarang: {selectedItem.balance.qtyOnHand.toLocaleString("id-ID")}{" "}
                   {selectedItem.balance.unit.code}
                 </p>
               )}
@@ -274,8 +280,9 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
 
             {isPotentialNegativeStock && (
               <p className="md:col-span-2 text-sm text-destructive">
-                Warning: mutasi ini membuat proyeksi stok menjadi{" "}
-                {projectedQty?.toLocaleString("id-ID")} {selectedItem?.defaultUnit.code}.
+                Perhatian: setelah perubahan ini, stok menjadi kurang dari nol (
+                {projectedQty?.toLocaleString("id-ID")} {selectedItem?.defaultUnit.code}). Kurangi
+                jumlah keluar atau tambah stok masuk.
               </p>
             )}
 

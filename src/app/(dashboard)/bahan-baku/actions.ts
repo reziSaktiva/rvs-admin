@@ -97,6 +97,6 @@ export async function addRawMaterialAction(formData: FormData) {
 
   revalidatePath("/bahan-baku");
   revalidatePath("/pembelian");
-  revalidatePath("/mutasi-stok");
+  revalidatePath("/riwayat-stok");
   revalidatePath("/");
 }

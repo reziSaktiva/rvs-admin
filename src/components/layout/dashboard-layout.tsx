@@ -1,3 +1,6 @@
+"use client";
+
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 
@@ -7,18 +10,12 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Sidebar */}
+    <SidebarProvider defaultOpen>
       <Sidebar />
-
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Topbar */}
+      <SidebarInset className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background md:peer-data-[variant=inset]:m-0 md:peer-data-[variant=inset]:rounded-none md:peer-data-[variant=inset]:shadow-none">
         <Topbar />
-
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
-    </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

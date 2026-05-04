@@ -85,7 +85,7 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link href="/mutasi-stok?movementType=purchase">Lihat di Mutasi Stok</Link>
+          <Link href="/riwayat-stok?movementType=purchase">Lihat di Riwayat Stok</Link>
         </Button>
       </div>
 

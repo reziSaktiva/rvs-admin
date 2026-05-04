@@ -5,6 +5,8 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
 import { logout } from "@/app/(auth)/actions";
 import {
   Tooltip,
@@ -23,18 +25,19 @@ export function Topbar() {
   }
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-sidebar px-6">
-      {/* Left: Search */}
-      <div className="relative hidden md:block">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-4 md:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
+        <SidebarTrigger className="-ml-1 text-foreground md:flex" />
+        <Separator orientation="vertical" className="hidden h-6 md:block" />
+        {/* Search */}
+        <div className="relative hidden min-w-0 flex-1 md:block md:max-w-md lg:max-w-lg">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Cari..."
-          className="h-9 w-96 pl-9 text-sm"
-        />
+          <Input placeholder="Cari..." className="h-9 w-full pl-9 text-sm" />
+        </div>
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2 md:gap-3">
         {/* Notification */}
         <div className="relative">
           <Button variant="outline" size="icon" aria-label="Notifikasi">
