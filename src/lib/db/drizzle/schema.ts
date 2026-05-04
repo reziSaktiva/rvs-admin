@@ -240,7 +240,7 @@ export const unitConversions = pgTable(
   {
     fromUnitId: uuid("from_unit_id").notNull(),
     toUnitId: uuid("to_unit_id").notNull(),
-    multiplier: numeric("multiplier", { precision: 18, scale: 8 }).notNull(),
+    multiplier: integer("multiplier").notNull(),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
