@@ -152,8 +152,8 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
       <CardHeader>
         <CardTitle>Perubahan stok</CardTitle>
         <CardDescription>
-          Catat masuk atau keluar bahan. Untuk pembelian rutin, Anda juga bisa memakai halaman
-          Pembelian bahan agar lebih terstruktur.
+          Catat masuk atau keluar bahan di gudang. Untuk pembelian rutin, gunakan halaman Pembelian
+          bahan agar nota dan pemasok lebih rapi.
         </CardDescription>
       </CardHeader>
       <CardContent>

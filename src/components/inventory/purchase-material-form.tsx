@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { InventoryMovementOptionItem } from "@/lib/inventory";
@@ -25,7 +25,7 @@ export function PurchaseMaterialForm({ items }: PurchaseMaterialFormProps) {
   const [unitCost, setUnitCost] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [referenceId, setReferenceId] = useState("");
-  const [occurredAt, setOccurredAt] = useState(toDateTimeLocal(new Date()));
+  const [occurredAt, setOccurredAt] = useState(() => toDateTimeLocal(new Date()));
   const [note, setNote] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
@@ -46,17 +46,17 @@ export function PurchaseMaterialForm({ items }: PurchaseMaterialFormProps) {
     event.preventDefault();
     if (!selectedItem) {
       setIsError(true);
-      setMessage("Pilih item bahan terlebih dahulu");
+      setMessage("Pilih bahan terlebih dahulu");
       return;
     }
     if (!isValidQty) {
       setIsError(true);
-      setMessage("Qty harus lebih besar dari 0");
+      setMessage("Jumlah harus lebih besar dari nol");
       return;
     }
     if (!isValidUnitCost) {
       setIsError(true);
-      setMessage("Harga beli per unit wajib diisi");
+      setMessage("Harga beli per satuan wajib diisi");
       return;
     }
 
@@ -84,11 +84,11 @@ export function PurchaseMaterialForm({ items }: PurchaseMaterialFormProps) {
       });
       const result = (await response.json()) as { success: boolean; message?: string };
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "Gagal menyimpan pembelian bahan");
+        throw new Error(result.message ?? "Gagal menyimpan pembelian");
       }
 
       setIsError(false);
-      setMessage("Pembelian bahan berhasil dicatat");
+      setMessage("Pembelian berhasil dicatat");
       setQty("");
       setUnitCost("");
       setReferenceId("");
@@ -96,7 +96,7 @@ export function PurchaseMaterialForm({ items }: PurchaseMaterialFormProps) {
       router.refresh();
     } catch (error) {
       setIsError(true);
-      setMessage(error instanceof Error ? error.message : "Gagal menyimpan pembelian bahan");
+      setMessage(error instanceof Error ? error.message : "Gagal menyimpan pembelian");
     } finally {
       setIsSubmitting(false);
     }
@@ -105,17 +105,21 @@ export function PurchaseMaterialForm({ items }: PurchaseMaterialFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Input Pembelian Bahan</CardTitle>
+        <CardTitle>Catat pembelian baru</CardTitle>
+        <CardDescription>
+          Setelah disimpan, stok bertambah dan harga rata-rata di gudang ikut dihitung ulang sesuai
+          aturan sistem.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Tidak ada item bahan aktif. Tambahkan data item bahan terlebih dahulu.
+            Belum ada bahan aktif. Tambahkan bahan di halaman Bahan baku, lalu kembali ke halaman ini.
           </p>
         ) : (
           <form className="grid gap-3 md:grid-cols-3" onSubmit={onSubmit}>
             <div className="space-y-1.5">
-              <Label htmlFor="purchase-item">Item bahan</Label>
+              <Label htmlFor="purchase-item">Bahan yang dibeli</Label>
               <select
                 id="purchase-item"
                 value={itemId}
@@ -132,7 +136,7 @@ export function PurchaseMaterialForm({ items }: PurchaseMaterialFormProps) {
 
             <div className="space-y-1.5">
               <Label htmlFor="purchase-qty">
-                Qty masuk ({selectedItem?.defaultUnit.code ?? "-"})
+                Jumlah masuk ({selectedItem?.defaultUnit.code ?? "satuan"})
               </Label>
               <Input
                 id="purchase-qty"
@@ -140,44 +144,44 @@ export function PurchaseMaterialForm({ items }: PurchaseMaterialFormProps) {
                 step="0.0001"
                 value={qty}
                 onChange={(event) => setQty(event.target.value)}
-                placeholder="contoh: 25"
+                placeholder="Contoh: 25"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="purchase-unit-cost">Harga beli per unit</Label>
+              <Label htmlFor="purchase-unit-cost">Harga beli per satuan</Label>
               <Input
                 id="purchase-unit-cost"
                 type="number"
                 step="0.0001"
                 value={unitCost}
                 onChange={(event) => setUnitCost(event.target.value)}
-                placeholder="contoh: 12000"
+                placeholder="Contoh: 12000"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="purchase-supplier">Supplier</Label>
+              <Label htmlFor="purchase-supplier">Nama pemasok (opsional)</Label>
               <Input
                 id="purchase-supplier"
                 value={supplierName}
                 onChange={(event) => setSupplierName(event.target.value)}
-                placeholder="contoh: CV Sumber Plastik"
+                placeholder="Contoh: Toko Kimia Jaya"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="purchase-reference">Nomor dokumen</Label>
+              <Label htmlFor="purchase-reference">Nomor nota / PO (opsional)</Label>
               <Input
                 id="purchase-reference"
                 value={referenceId}
                 onChange={(event) => setReferenceId(event.target.value)}
-                placeholder="PO-2026-001"
+                placeholder="Contoh: F-2026-0142"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="purchase-date">Tanggal transaksi</Label>
+              <Label htmlFor="purchase-date">Tanggal & jam transaksi</Label>
               <Input
                 id="purchase-date"
                 type="datetime-local"
@@ -187,24 +191,24 @@ export function PurchaseMaterialForm({ items }: PurchaseMaterialFormProps) {
             </div>
 
             <div className="space-y-1.5 md:col-span-3">
-              <Label htmlFor="purchase-note">Catatan</Label>
+              <Label htmlFor="purchase-note">Catatan (opsional)</Label>
               <Input
                 id="purchase-note"
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
-                placeholder="Catatan tambahan pembelian"
+                placeholder="Contoh: barang sudah dicek fisik"
               />
             </div>
 
-            <div className="md:col-span-3 flex items-center gap-3">
+            <div className="md:col-span-3 flex flex-wrap items-center gap-3">
               <Button type="submit" disabled={!canSubmit}>
-                {isSubmitting ? "Menyimpan..." : "Simpan Pembelian"}
+                {isSubmitting ? "Menyimpan..." : "Simpan pembelian"}
               </Button>
-              {message && (
+              {message ? (
                 <p className={`text-sm ${isError ? "text-destructive" : "text-emerald-600"}`}>
                   {message}
                 </p>
-              )}
+              ) : null}
             </div>
           </form>
         )}

@@ -93,10 +93,10 @@ export default async function BahanBakuPage() {
             Tambah nama bahan di bawah jika belum ada di daftar (pastikan satuan seperti kg atau pcs
             sudah tersedia di sistem).
           </li>
-          <li>Untuk pembelian rutin gunakan menu Pembelian bahan agar tercatat rapi beserta referensi.</li>
+          <li>Untuk pembelian rutin gunakan halaman Pembelian bahan supaya nota dan pemasok mudah dilacak.</li>
           <li>
-            Gunakan formulir &quot;Perubahan stok&quot; untuk koreksi, produksi, atau penyesuaian lain
-            sesuai jenis perubahan.
+            Formulir &quot;Perubahan stok&quot; di bawah dipakai untuk koreksi, produksi, atau penyesuaian
+            lain—pilih jenis perubahan yang sesuai.
           </li>
         </ol>
       </section>
@@ -148,8 +148,8 @@ export default async function BahanBakuPage() {
             <CardDescription>
               {availableUnits.length === 0 ? (
                 <>
-                  Dropdown satuan kosong. Minta admin menambahkan satuan (misalnya kg, pcs) ke
-                  database atau menjalankan skrip seed satuan.
+                  Daftar satuan kosong. Minta pengelola sistem menambahkan satuan (misalnya kg,
+                  pcs) terlebih dahulu.
                 </>
               ) : (
                 <>
@@ -271,7 +271,8 @@ export default async function BahanBakuPage() {
                 className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               />
               <p className="text-xs text-muted-foreground">
-                Dipakai untuk perhitungan HPP sampai ada harga lain yang tercatat.
+                Membantu kalkulator biaya (HPP) punya acuan harga sampai ada pembelian atau update
+                lain.
               </p>
             </div>
 
@@ -324,10 +325,10 @@ export default async function BahanBakuPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Stok dan nilai per bahan</CardTitle>
+          <CardTitle>Daftar stok dan nilai per bahan</CardTitle>
           <CardDescription>
-            Jumlah di gudang, perkiraan harga pokok rata-rata per satuan, dan nilai persediaan untuk
-            tiap jenis bahan.
+            Jumlah di gudang, harga rata-rata per satuan, dan perkiraan nilai uang yang tersimpan
+            per jenis bahan.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -337,7 +338,7 @@ export default async function BahanBakuPage() {
                 <TableHead>Nama bahan</TableHead>
                 <TableHead>Kelompok</TableHead>
                 <TableHead>Jumlah stok</TableHead>
-                <TableHead>Harga pokok rata-rata</TableHead>
+                <TableHead>Harga rata-rata per satuan</TableHead>
                 <TableHead className="text-right">Nilai persediaan</TableHead>
               </TableRow>
             </TableHeader>

@@ -12,7 +12,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { db } from "@/lib/db";
-import { costItems, units } from "@/lib/db/drizzle/schema";
 import { calculateHpp, type CalculateHppResult } from "@/lib/hpp";
 import {
   addRecipeCostAction,
