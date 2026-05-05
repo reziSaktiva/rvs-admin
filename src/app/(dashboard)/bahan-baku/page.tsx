@@ -26,8 +26,8 @@ import {
 import { InventoryMovementForm } from "@/components/inventory/inventory-movement-form";
 import { db } from "@/lib/db";
 import { getInventoryMovementOptions, getRawMaterialAssetSummary } from "@/lib/inventory";
-import { addRawMaterialAction } from "./actions";
-import { ClipboardList, Package, PencilIcon, ShoppingCart, Warehouse } from "lucide-react";
+import { ClipboardList, Package, ShoppingCart, Warehouse } from "lucide-react";
+import { AddRawMaterialFormCard } from "@/components/inventory/add-raw-material-form-card";
 
 const formatCurrency = (value: number) =>
   value.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
@@ -36,16 +36,6 @@ const itemTypeLabel = (type: string) => {
   if (type === "raw_material") return "Bahan utama";
   if (type === "packaging") return "Kemasan";
   return type;
-};
-
-const dimensionHint = (dimension: string) => {
-  const map: Record<string, string> = {
-    count: "dihitung per buah / pasang / kemasan",
-    weight: "berat",
-    volume: "isi cairan",
-    length: "panjang",
-  };
-  return map[dimension] ?? dimension;
 };
 
 export default async function BahanBakuPage() {
@@ -176,184 +166,65 @@ export default async function BahanBakuPage() {
         </Card>
       </section>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Perubahan stok</CardTitle>
-          <CardDescription>
-            Catat stok masuk atau keluar bahan. Gunakan ini untuk koreksi stok, hasil produksi, retur,
-            atau transfer.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button>Catat perubahan stok</Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-3xl">
-              <SheetHeader>
-                <SheetTitle>Form perubahan stok</SheetTitle>
-                <SheetDescription>
-                  Isi bahan, jenis perubahan, dan jumlah. Sistem akan menghitung stok masuk/keluar
-                  secara otomatis.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="px-4 pb-4">
-                <InventoryMovementForm
-                  items={movementOptions.items}
-                  movementTypes={movementOptions.movementTypes}
-                />
-              </div>
-            </SheetContent>
-          </Sheet>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Tambah bahan baru</CardTitle>
-          <CardDescription>
-            Isi nama bahan dan satuan sebagai data wajib. Kode internal, harga awal, dan stok awal boleh
-            diisi nanti.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {availableUnits.length === 0 ? (
-            <p className="text-sm text-amber-700 dark:text-amber-500">
-              Belum ada satuan di sistem. Tambahkan data satuan terlebih dahulu agar form ini bisa
-              digunakan.
-            </p>
-          ) : null}
-          <form action={addRawMaterialAction} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-1.5 md:col-span-2 xl:col-span-2">
-              <label htmlFor="bb-name" className="text-sm font-medium">
-                Nama bahan <span className="text-destructive">*</span>
-              </label>
-              <input
-                id="bb-name"
-                name="name"
-                required
-                placeholder="Contoh: Benang PE 20s"
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="bb-sku" className="text-sm font-medium">
-                Kode bahan (opsional)
-              </label>
-              <input
-                id="bb-sku"
-                name="sku"
-                placeholder="Contoh: BB-BENANG-01"
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              />
-              <p className="text-xs text-muted-foreground">Boleh dikosongkan jika tidak memakai kode.</p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="bb-type" className="text-sm font-medium">
-                Kelompok bahan
-              </label>
-              <select
-                id="bb-type"
-                name="itemType"
-                defaultValue="raw_material"
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              >
-                <option value="raw_material">Bahan utama (kain, benang, dll.)</option>
-                <option value="packaging">Kemasan (plastik, dus, label, dll.)</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5 md:col-span-2 xl:col-span-2">
-              <label htmlFor="bb-unit" className="text-sm font-medium">
-                Satuan utama <span className="text-destructive">*</span>
-              </label>
-              <select
-                id="bb-unit"
-                name="unitId"
-                required
-                defaultValue=""
-                disabled={availableUnits.length === 0}
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <option value="" disabled>
-                  Pilih satuan
-                </option>
-                {availableUnits.map((unit) => (
-                  <option key={unit.id} value={unit.id}>
-                    {unit.code} — {unit.name} ({dimensionHint(unit.dimension)})
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">
-                Satuan ini jadi satuan utama untuk hitung stok dan harga bahan.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="bb-initial-price" className="text-sm font-medium">
-                Harga awal per satuan (opsional)
-              </label>
-              <input
-                id="bb-initial-price"
-                name="initialPrice"
-                type="number"
-                step="0.0001"
-                min="0"
-                placeholder="Contoh: 15000"
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              />
-              <p className="text-xs text-muted-foreground">
-                Dipakai sebagai acuan biaya sampai ada data pembelian terbaru.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="bb-opening-qty" className="text-sm font-medium">
-                Stok awal (opsional)
-              </label>
-              <input
-                id="bb-opening-qty"
-                name="openingQty"
-                type="number"
-                step="0.0001"
-                min="0"
-                placeholder="Contoh: 100"
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              />
-              <p className="text-xs text-muted-foreground">Isi jika mulai mencatat dari saldo yang sudah ada.</p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="bb-opening-cost" className="text-sm font-medium">
-                Harga per satuan untuk stok awal (opsional)
-              </label>
-              <input
-                id="bb-opening-cost"
-                name="openingUnitCost"
-                type="number"
-                step="0.0001"
-                min="0"
-                placeholder="Wajib jika stok awal diisi"
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              />
-              <p className="text-xs text-muted-foreground">
-                Jika kosong, sistem pakai harga awal per satuan (jika diisi).
-              </p>
-            </div>
-
-            <div className="flex items-end md:col-span-2 xl:col-span-1">
-              <Button type="submit" disabled={availableUnits.length === 0}>
-                Simpan bahan
-              </Button>
-            </div>
-          </form>
-          <p className="text-xs text-muted-foreground">
-            Setelah disimpan, bahan ini langsung muncul di form perubahan stok dan halaman pembelian.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Penambahan Bahan Baru</CardTitle>
+            <CardDescription>
+              Tambahkan bahan baru ke sistem. Isi nama bahan, kode, jenis, dan satuan utama. Data ini akan otomatis terlihat di form perubahan stok.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button>Tambah bahan baru</Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-3xl">
+                <SheetHeader>
+                  <SheetTitle>Form penambahan bahan baru</SheetTitle>
+                  <SheetDescription>
+                    Isi nama bahan, kode, jenis, dan satuan utama. Data ini akan otomatis terlihat di form perubahan stok.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="px-4 pb-4">
+                  <AddRawMaterialFormCard availableUnits={availableUnits} />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Perubahan stok</CardTitle>
+            <CardDescription>
+              Catat stok masuk atau keluar bahan. Gunakan ini untuk koreksi stok, hasil produksi, retur,
+              atau transfer.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button>Catat perubahan stok</Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-3xl">
+                <SheetHeader>
+                  <SheetTitle>Form perubahan stok</SheetTitle>
+                  <SheetDescription>
+                    Isi bahan, jenis perubahan, dan jumlah. Sistem akan menghitung stok masuk/keluar
+                    secara otomatis.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="px-4 pb-4">
+                  <InventoryMovementForm
+                    items={movementOptions.items}
+                    movementTypes={movementOptions.movementTypes}
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
@@ -371,7 +242,6 @@ export default async function BahanBakuPage() {
                 <TableHead>Jumlah stok</TableHead>
                 <TableHead>Harga rata-rata per satuan</TableHead>
                 <TableHead className="text-right">Nilai persediaan</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -392,31 +262,6 @@ export default async function BahanBakuPage() {
                     <TableCell className="tabular-nums">{formatCurrency(item.avgCostPerUnit)}</TableCell>
                     <TableCell className="text-right tabular-nums font-medium">
                       {formatCurrency(item.assetValue)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Sheet>
-                        <SheetTrigger asChild>
-                          <Button size="sm" variant="outline">
-                            <PencilIcon className="mr-1 size-4" />
-                            Ubah stok
-                            <span className="sr-only"> untuk {item.itemName}</span>
-                          </Button>
-                        </SheetTrigger>
-                        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-3xl">
-                          <SheetHeader>
-                            <SheetTitle>Perubahan stok bahan</SheetTitle>
-                            <SheetDescription>
-                              Pilih jenis perubahan dan isi jumlah sesuai transaksi.
-                            </SheetDescription>
-                          </SheetHeader>
-                          <div className="px-4 pb-4">
-                            <InventoryMovementForm
-                              items={movementOptions.items}
-                              movementTypes={movementOptions.movementTypes}
-                            />
-                          </div>
-                        </SheetContent>
-                      </Sheet>
                     </TableCell>
                   </TableRow>
                 ))
