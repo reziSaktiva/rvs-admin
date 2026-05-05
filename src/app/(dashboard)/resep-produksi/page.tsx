@@ -3,8 +3,26 @@ import { asc, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription as FormFieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -28,6 +46,7 @@ import {
   updateRecipeMaterialAction,
   updateRecipeStatusAction,
 } from "./actions";
+import { PencilIcon, TrashIcon } from "lucide-react";
 
 type ResepProduksiPageProps = {
   searchParams?: Promise<{
@@ -89,7 +108,8 @@ const errorLabel = (code?: string) => {
 
 export default async function ResepProduksiPage({ searchParams }: ResepProduksiPageProps) {
   const params = (await searchParams) ?? {};
-  const selectedStatus = params.status;
+  const statusParam = params.status as string | undefined;
+  const selectedStatus = statusParam === "__all" ? undefined : params.status;
 
   const [recipeRows, availableItems, availableUnits, categories, products, allVariants] = await Promise.all([
     db.query.recipes.findMany({
@@ -240,16 +260,17 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
           <form method="get" className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium">Status</label>
-              <select
-                name="status"
-                defaultValue={selectedStatus ?? ""}
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 min-w-52 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              >
-                <option value="">Semua</option>
-                <option value="draft">Draf</option>
-                <option value="active">Aktif</option>
-                <option value="archived">Diarsipkan</option>
-              </select>
+              <Select name="status" defaultValue={selectedStatus ?? "__all"}>
+                <SelectTrigger className="min-w-52">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all">Semua</SelectItem>
+                  <SelectItem value="draft">Draf</SelectItem>
+                  <SelectItem value="active">Aktif</SelectItem>
+                  <SelectItem value="archived">Diarsipkan</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <Button type="submit">Terapkan</Button>
@@ -330,62 +351,49 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
             <CardContent>
               <form action={createRecipeWithExistingVariantAction} className="space-y-3">
                 <input type="hidden" name="status" value={selectedStatus ?? ""} />
-                <select
-                  name="productVariantId"
-                  defaultValue=""
-                  required
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-                >
-                  <option value="" disabled>
-                    Pilih varian produk
-                  </option>
-                  {allVariants.map((variant) => (
-                    <option key={variant.id} value={variant.id}>
-                      {variant.product.name} {variant.size ? `- ${variant.size}` : ""}{" "}
-                      {variant.sku ? `(${variant.sku})` : ""}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  name="name"
-                  placeholder="Nama resep"
-                  required
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-                />
+                <Select name="productVariantId" required>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Pilih varian produk" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allVariants.map((variant) => (
+                      <SelectItem key={variant.id} value={variant.id}>
+                        {variant.product.name} {variant.size ? `- ${variant.size}` : ""}{" "}
+                        {variant.sku ? `(${variant.sku})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input name="name" placeholder="Nama resep" required />
                 <div className="grid grid-cols-2 gap-2">
-                  <input
+                  <Input
                     name="outputQty"
                     type="number"
                     min="0.0001"
-                    step="0.0001"
+                    step="1"
                     placeholder="Hasil per batch"
                     required
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                   />
-                  <select
-                    name="outputUnitId"
-                    defaultValue=""
-                    required
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
-                  >
-                    <option value="" disabled>
-                      Satuan hasil
-                    </option>
-                    {availableUnits.map((unit) => (
-                      <option key={unit.id} value={unit.id}>
-                        {unit.code}
-                      </option>
-                    ))}
-                  </select>
+                  <Select name="outputUnitId" required>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Satuan hasil" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableUnits.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>
+                          {unit.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <input
+                <Input
                   name="lossPercent"
                   type="number"
                   min="0"
-                  max="100"
+                  max="0"
                   step="0.01"
                   placeholder="Susut (%)"
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                 />
                 <Button type="submit" size="sm">
                   Buat resep
@@ -402,101 +410,87 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
             <CardContent>
               <form action={createVariantAndRecipeForExistingProductAction} className="space-y-3">
                 <input type="hidden" name="status" value={selectedStatus ?? ""} />
-                <select
-                  name="productId"
-                  defaultValue=""
-                  required
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-                >
-                  <option value="" disabled>
-                    Pilih produk
-                  </option>
-                  {products.map((productItem) => (
-                    <option key={productItem.id} value={productItem.id}>
-                      {productItem.name}
-                    </option>
-                  ))}
-                </select>
+                <Select name="productId" required>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Pilih produk" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((productItem) => (
+                      <SelectItem key={productItem.id} value={productItem.id}>
+                        {productItem.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <div className="grid grid-cols-2 gap-2">
-                  <input
+                  <Input
                     name="variantSize"
                     placeholder="Ukuran varian"
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                   />
-                  <input
+                  <Input
                     name="variantSku"
                     placeholder="SKU varian"
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <input
+                  <Input
                     name="variantBarcode"
                     placeholder="Barcode"
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                   />
-                  <input
+                  <Input
                     name="variantPrice"
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="100"
                     placeholder="Harga jual"
                     required
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                   />
                 </div>
-                <input
+                <Input
                   name="variantStock"
                   type="number"
                   min="0"
                   step="1"
                   placeholder="Stok awal"
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                 />
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <input type="checkbox" name="variantIsActive" defaultChecked />
+                  <Checkbox name="variantIsActive" defaultChecked />
                   Varian aktif
                 </label>
-                <input
+                <Input
                   name="name"
                   placeholder="Nama resep"
                   required
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                 />
                 <div className="grid grid-cols-2 gap-2">
-                  <input
+                  <Input
                     name="outputQty"
                     type="number"
-                    min="0.0001"
-                    step="0.0001"
+                    min="0"
+                    step="0.01"
                     placeholder="Hasil per batch"
                     required
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                   />
-                  <select
-                    name="outputUnitId"
-                    defaultValue=""
-                    required
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
-                  >
-                    <option value="" disabled>
-                      Satuan hasil
-                    </option>
-                    {availableUnits.map((unit) => (
-                      <option key={unit.id} value={unit.id}>
-                        {unit.code}
-                      </option>
-                    ))}
-                  </select>
+                  <Select name="outputUnitId" required>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Satuan hasil" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableUnits.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>
+                          {unit.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <input
+                <Input
                   name="lossPercent"
                   type="number"
                   min="0"
                   max="100"
                   step="0.01"
                   placeholder="Susut (%)"
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                 />
                 <Button type="submit" size="sm" variant="secondary">
                   Buat varian + resep
@@ -513,113 +507,98 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
             <CardContent>
               <form action={createProductVariantAndRecipeAction} className="space-y-3">
                 <input type="hidden" name="status" value={selectedStatus ?? ""} />
-                <input
-                  name="productName"
-                  placeholder="Nama produk"
-                  required
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-                />
+                <Input name="productName" placeholder="Nama produk" required />
                 <textarea
                   name="productDescription"
                   placeholder="Deskripsi produk (opsional)"
                   className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
                 />
-                <select
-                  name="categoryId"
-                  defaultValue=""
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-                >
-                  <option value="">Tanpa kategori</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
+                <Select name="categoryId" defaultValue="__none">
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Tanpa kategori</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <input type="checkbox" name="productIsActive" defaultChecked />
+                  <Checkbox name="productIsActive" defaultChecked />
                   Produk aktif
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  <input
+                  <Input
                     name="variantSize"
                     placeholder="Ukuran varian"
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                   />
-                  <input
+                  <Input
                     name="variantSku"
                     placeholder="SKU varian"
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <input
+                  <Input
                     name="variantBarcode"
                     placeholder="Barcode"
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                   />
-                  <input
+                  <Input
                     name="variantPrice"
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="100"
                     placeholder="Harga jual"
                     required
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                   />
                 </div>
-                <input
+                <Input
                   name="variantStock"
                   type="number"
                   min="0"
                   step="1"
                   placeholder="Stok awal"
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                 />
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <input type="checkbox" name="variantIsActive" defaultChecked />
+                  <Checkbox name="variantIsActive" defaultChecked />
                   Varian aktif
                 </label>
-                <input
+                <Input
                   name="name"
                   placeholder="Nama resep"
                   required
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                 />
                 <div className="grid grid-cols-2 gap-2">
-                  <input
+                  <Input
                     name="outputQty"
                     type="number"
                     min="0.0001"
                     step="0.0001"
                     placeholder="Hasil per batch"
                     required
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                   />
-                  <select
-                    name="outputUnitId"
-                    defaultValue=""
-                    required
-                    className="border-input bg-background h-9 rounded-md border px-3 text-sm"
-                  >
-                    <option value="" disabled>
-                      Satuan hasil
-                    </option>
-                    {availableUnits.map((unit) => (
-                      <option key={unit.id} value={unit.id}>
-                        {unit.code}
-                      </option>
-                    ))}
-                  </select>
+                  <Select name="outputUnitId" required>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Satuan hasil" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableUnits.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>
+                          {unit.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <input
+                <Input
                   name="lossPercent"
                   type="number"
                   min="0"
                   max="100"
                   step="0.01"
                   placeholder="Susut (%)"
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                 />
                 <Button type="submit" size="sm" variant="secondary">
                   Buat produk + varian + resep
@@ -653,24 +632,27 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                     <input type="hidden" name="variantId" value={selectedRecipe.productVariant.id} />
                     <input type="hidden" name="status" value={selectedStatus ?? ""} />
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                      <input
+                      <Input
                         name="productName"
                         defaultValue={selectedRecipe.productVariant.product.name}
                         required
-                        className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                       />
-                      <select
+                      <Select
                         name="categoryId"
-                        defaultValue={selectedRecipe.productVariant.product.categoryId ?? ""}
-                        className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+                        defaultValue={selectedRecipe.productVariant.product.categoryId ?? "__none"}
                       >
-                        <option value="">Tanpa kategori</option>
-                        {categories.map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none">Tanpa kategori</SelectItem>
+                          {categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <textarea
                       name="productDescription"
@@ -679,58 +661,51 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                       placeholder="Deskripsi produk"
                     />
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                      <input
+                      <Input
                         name="variantSize"
                         defaultValue={selectedRecipe.productVariant.size ?? ""}
-                        className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                         placeholder="Ukuran varian"
                       />
-                      <input
+                      <Input
                         name="variantSku"
                         defaultValue={selectedRecipe.productVariant.sku ?? ""}
-                        className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                         placeholder="SKU varian"
                       />
                     </div>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                      <input
+                      <Input
                         name="variantBarcode"
                         defaultValue={selectedRecipe.productVariant.barcode ?? ""}
-                        className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                         placeholder="Barcode varian"
                       />
-                      <input
+                      <Input
                         name="variantPrice"
                         type="number"
                         min="0"
                         step="0.01"
                         defaultValue={String(selectedRecipe.productVariant.price)}
                         required
-                        className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                         placeholder="Harga jual"
                       />
                     </div>
-                    <input
+                    <Input
                       name="variantStock"
                       type="number"
                       min="0"
                       step="1"
                       defaultValue={String(selectedRecipe.productVariant.stock ?? 0)}
-                      className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                       placeholder="Stok varian"
                     />
                     <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                       <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           name="productIsActive"
                           defaultChecked={selectedRecipe.productVariant.product.isActive ?? true}
                         />
                         Produk aktif
                       </label>
                       <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           name="variantIsActive"
                           defaultChecked={selectedRecipe.productVariant.isActive ?? true}
                         />
@@ -777,15 +752,16 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                         </Badge>
                         <form action={updateRecipeStatusAction} className="flex items-center gap-2">
                           <input type="hidden" name="recipeId" value={selectedRecipe.id} />
-                          <select
-                            name="status"
-                            defaultValue={selectedRecipe.status}
-                            className="border-input bg-background ring-offset-background focus-visible:ring-ring h-8 rounded-md border px-2 text-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                          >
-                            <option value="draft">Draf</option>
-                            <option value="active">Aktif</option>
-                            <option value="archived">Diarsipkan</option>
-                          </select>
+                          <Select name="status" defaultValue={selectedRecipe.status}>
+                            <SelectTrigger className="h-8 w-[140px] text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="draft">Draf</SelectItem>
+                              <SelectItem value="active">Aktif</SelectItem>
+                              <SelectItem value="archived">Diarsipkan</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <Button type="submit" size="sm" variant="outline">
                             Simpan status
                           </Button>
@@ -794,7 +770,7 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div className="flex flex-col gap-3">
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-base">Daftar bahan (BOM)</CardTitle>
@@ -827,73 +803,76 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                                     {Number(item.wastePercent ?? 0).toLocaleString("id-ID")}%
                                   </TableCell>
                                   <TableCell>
-                                    <div className="flex flex-wrap gap-2">
-                                      <form
-                                        action={updateRecipeMaterialAction}
-                                        className="grid w-full grid-cols-1 gap-2 md:grid-cols-6"
-                                      >
-                                        <input type="hidden" name="materialId" value={item.id} />
-                                        <Field>
-                                          <FieldLabel htmlFor={`mat-qty-${item.id}`} className="sr-only">
-                                            Jumlah
-                                          </FieldLabel>
-                                          <Input
-                                            id={`mat-qty-${item.id}`}
-                                            name="qty"
-                                            type="number"
-                                            step="0.0001"
-                                            defaultValue={String(item.qty)}
-                                            className="h-8 text-xs"
-                                            required
-                                          />
-                                        </Field>
-                                        <Field>
-                                          <FieldLabel htmlFor={`mat-waste-${item.id}`} className="sr-only">
-                                            Susut
-                                          </FieldLabel>
-                                          <Input
-                                            id={`mat-waste-${item.id}`}
-                                            name="wastePercent"
-                                            type="number"
-                                            step="0.01"
-                                            defaultValue={String(item.wastePercent ?? 0)}
-                                            className="h-8 text-xs"
-                                          />
-                                        </Field>
-                                        <Field>
-                                          <FieldLabel htmlFor={`mat-order-${item.id}`} className="sr-only">
-                                            Urutan
-                                          </FieldLabel>
-                                          <Input
-                                            id={`mat-order-${item.id}`}
-                                            name="sortOrder"
-                                            type="number"
-                                            step="1"
-                                            defaultValue={String(item.sortOrder ?? 0)}
-                                            className="h-8 text-xs"
-                                          />
-                                        </Field>
-                                        <Field className="flex items-center gap-2 pt-1">
-                                          <input
-                                            id={`mat-opt-${item.id}`}
-                                            type="checkbox"
-                                            name="isOptional"
-                                            defaultChecked={item.isOptional ?? false}
-                                          />
-                                          <FieldLabel htmlFor={`mat-opt-${item.id}`} className="text-xs">
-                                            Opsional
-                                          </FieldLabel>
-                                        </Field>
-                                        <div className="md:col-span-2">
-                                          <Button type="submit" size="sm" variant="outline">
-                                            Simpan
+                                    <div className="flex flex-col gap-2">
+                                      <Dialog>
+                                        <DialogTrigger asChild>
+                                          <Button type="button" size="sm" variant="secondary" className="w-full">
+                                            Edit <PencilIcon />
                                           </Button>
-                                        </div>
-                                      </form>
-                                      <form action={deleteRecipeMaterialAction}>
+                                        </DialogTrigger>
+                                        <DialogContent className="sm:max-w-md">
+                                          <DialogHeader>
+                                            <DialogTitle>Edit bahan resep</DialogTitle>
+                                            <DialogDescription>
+                                              Ubah jumlah, susut, dan urutan bahan pada resep ini.
+                                            </DialogDescription>
+                                          </DialogHeader>
+                                          <form action={updateRecipeMaterialAction} className="space-y-3">
+                                            <input type="hidden" name="materialId" value={item.id} />
+                                            <Field>
+                                              <FieldLabel htmlFor={`edit-mat-qty-${item.id}`}>Jumlah</FieldLabel>
+                                              <Input
+                                                id={`edit-mat-qty-${item.id}`}
+                                                name="qty"
+                                                type="number"
+                                                step="1"
+                                                defaultValue={String(item.qty)}
+                                                required
+                                              />
+                                            </Field>
+                                            <Field>
+                                              <FieldLabel htmlFor={`edit-mat-waste-${item.id}`}>Susut (%)</FieldLabel>
+                                              <Input
+                                                id={`edit-mat-waste-${item.id}`}
+                                                name="wastePercent"
+                                                type="number"
+                                                step="0.01"
+                                                defaultValue={String(item.wastePercent ?? 0)}
+                                              />
+                                            </Field>
+                                            <Field>
+                                              <FieldLabel htmlFor={`edit-mat-order-${item.id}`}>Urutan</FieldLabel>
+                                              <Input
+                                                id={`edit-mat-order-${item.id}`}
+                                                name="sortOrder"
+                                                type="number"
+                                                step="1"
+                                                defaultValue={String(item.sortOrder ?? 0)}
+                                              />
+                                            </Field>
+                                            <Field className="flex items-center gap-2">
+                                              <Checkbox
+                                                id={`edit-mat-opt-${item.id}`}
+                                                name="isOptional"
+                                                defaultChecked={item.isOptional ?? false}
+                                              />
+                                              <FieldLabel htmlFor={`edit-mat-opt-${item.id}`}>Opsional</FieldLabel>
+                                            </Field>
+                                            <DialogFooter>
+                                              <DialogClose asChild>
+                                                <Button type="button" variant="outline">
+                                                  Batal
+                                                </Button>
+                                              </DialogClose>
+                                              <Button type="submit">Simpan</Button>
+                                            </DialogFooter>
+                                          </form>
+                                        </DialogContent>
+                                      </Dialog>
+                                      <form action={deleteRecipeMaterialAction} className="w-full">
                                         <input type="hidden" name="materialId" value={item.id} />
-                                        <Button type="submit" size="sm" variant="ghost">
-                                          Hapus
+                                        <Button type="submit" size="sm" variant="destructive" className="w-full">
+                                          Hapus <TrashIcon />
                                         </Button>
                                       </form>
                                     </div>
@@ -914,22 +893,18 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                               <FieldLabel htmlFor="new-material-item" className="sr-only">
                                 Item bahan
                               </FieldLabel>
-                              <select
-                                id="new-material-item"
-                                name="itemId"
-                                defaultValue=""
-                                className="border-input bg-background h-9 rounded-md border px-2 text-sm"
-                                required
-                              >
-                                <option value="" disabled>
-                                  Pilih item
-                                </option>
-                                {availableItems.map((item) => (
-                                  <option key={item.id} value={item.id}>
-                                    {item.name} ({itemTypeLabel(item.itemType)})
-                                  </option>
-                                ))}
-                              </select>
+                              <Select name="itemId" required>
+                                <SelectTrigger id="new-material-item" className="w-full">
+                                  <SelectValue placeholder="Pilih item" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableItems.map((item) => (
+                                    <SelectItem key={item.id} value={item.id}>
+                                      {item.name} ({itemTypeLabel(item.itemType)})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </Field>
                             <Field>
                               <FieldLabel htmlFor="new-material-qty" className="sr-only">
@@ -948,22 +923,18 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                               <FieldLabel htmlFor="new-material-unit" className="sr-only">
                                 Satuan
                               </FieldLabel>
-                              <select
-                                id="new-material-unit"
-                                name="unitId"
-                                defaultValue=""
-                                className="border-input bg-background h-9 rounded-md border px-2 text-sm"
-                                required
-                              >
-                                <option value="" disabled>
-                                  Satuan
-                                </option>
-                                {availableUnits.map((unit) => (
-                                  <option key={unit.id} value={unit.id}>
-                                    {unit.code} ({unit.dimension})
-                                  </option>
-                                ))}
-                              </select>
+                              <Select name="unitId" required>
+                                <SelectTrigger id="new-material-unit" className="w-full">
+                                  <SelectValue placeholder="Satuan" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableUnits.map((unit) => (
+                                    <SelectItem key={unit.id} value={unit.id}>
+                                      {unit.code} ({unit.dimension})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </Field>
                             <Field>
                               <FieldLabel htmlFor="new-material-waste" className="sr-only">
@@ -990,7 +961,7 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                               />
                             </Field>
                             <Field className="flex items-center gap-2">
-                              <input id="new-material-optional" type="checkbox" name="isOptional" />
+                              <Checkbox id="new-material-optional" name="isOptional" />
                               <FieldLabel htmlFor="new-material-optional" className="text-xs">
                                 Opsional
                               </FieldLabel>
@@ -1036,49 +1007,83 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                                   <TableCell>{costBasisLabel(item.basis)}</TableCell>
                                   <TableCell>{formatCurrency(Number(item.amount))}</TableCell>
                                   <TableCell>
-                                    <div className="flex flex-wrap gap-2">
-                                      <form action={updateRecipeCostAction} className="flex flex-wrap items-center gap-2">
+                                    <div className="flex flex-col gap-2">
+                                      <Dialog>
+                                        <DialogTrigger asChild>
+                                          <Button type="button" size="sm" variant="secondary" className="w-full">
+                                            Edit <PencilIcon />
+                                          </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="sm:max-w-md">
+                                          <DialogHeader>
+                                            <DialogTitle>Edit biaya tambahan</DialogTitle>
+                                            <DialogDescription>
+                                              Ubah nama, jenis biaya, dasar hitung, dan nominal.
+                                            </DialogDescription>
+                                          </DialogHeader>
+                                          <form action={updateRecipeCostAction} className="space-y-3">
+                                            <input type="hidden" name="costId" value={item.id} />
+                                            <Field>
+                                              <FieldLabel htmlFor={`edit-cost-name-${item.id}`}>Nama biaya</FieldLabel>
+                                              <Input
+                                                id={`edit-cost-name-${item.id}`}
+                                                name="name"
+                                                defaultValue={item.name}
+                                                required
+                                              />
+                                            </Field>
+                                            <Field>
+                                              <FieldLabel>Jenis biaya</FieldLabel>
+                                              <Select name="componentType" defaultValue={item.componentType}>
+                                                <SelectTrigger className="w-full">
+                                                  <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="material">Bahan</SelectItem>
+                                                  <SelectItem value="labor">Tenaga kerja</SelectItem>
+                                                  <SelectItem value="overhead">Overhead</SelectItem>
+                                                  <SelectItem value="other">Lainnya</SelectItem>
+                                                </SelectContent>
+                                              </Select>
+                                            </Field>
+                                            <Field>
+                                              <FieldLabel>Dasar hitung</FieldLabel>
+                                              <Select name="basis" defaultValue={item.basis}>
+                                                <SelectTrigger className="w-full">
+                                                  <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="per_batch">Per batch</SelectItem>
+                                                  <SelectItem value="per_unit">Per unit hasil</SelectItem>
+                                                </SelectContent>
+                                              </Select>
+                                            </Field>
+                                            <Field>
+                                              <FieldLabel htmlFor={`edit-cost-amount-${item.id}`}>Nominal</FieldLabel>
+                                              <Input
+                                                id={`edit-cost-amount-${item.id}`}
+                                                name="amount"
+                                                type="number"
+                                                step="100"
+                                                defaultValue={String(item.amount)}
+                                                required
+                                              />
+                                            </Field>
+                                            <DialogFooter>
+                                              <DialogClose asChild>
+                                                <Button type="button" variant="outline">
+                                                  Batal
+                                                </Button>
+                                              </DialogClose>
+                                              <Button type="submit">Simpan</Button>
+                                            </DialogFooter>
+                                          </form>
+                                        </DialogContent>
+                                      </Dialog>
+                                      <form action={deleteRecipeCostAction} className="w-full">
                                         <input type="hidden" name="costId" value={item.id} />
-                                        <input
-                                          name="name"
-                                          defaultValue={item.name}
-                                          className="border-input bg-background h-8 w-32 rounded-md border px-2 text-xs"
-                                          required
-                                        />
-                                        <select
-                                          name="componentType"
-                                          defaultValue={item.componentType}
-                                          className="border-input bg-background h-8 rounded-md border px-2 text-xs"
-                                        >
-                                          <option value="material">Bahan</option>
-                                          <option value="labor">Tenaga kerja</option>
-                                          <option value="overhead">Overhead</option>
-                                          <option value="other">Lainnya</option>
-                                        </select>
-                                        <select
-                                          name="basis"
-                                          defaultValue={item.basis}
-                                          className="border-input bg-background h-8 rounded-md border px-2 text-xs"
-                                        >
-                                          <option value="per_batch">Per batch</option>
-                                          <option value="per_unit">Per unit hasil</option>
-                                        </select>
-                                        <input
-                                          name="amount"
-                                          type="number"
-                                          step="0.0001"
-                                          defaultValue={String(item.amount)}
-                                          className="border-input bg-background h-8 w-24 rounded-md border px-2 text-xs"
-                                          required
-                                        />
-                                        <Button type="submit" size="sm" variant="outline">
-                                          Simpan
-                                        </Button>
-                                      </form>
-                                      <form action={deleteRecipeCostAction}>
-                                        <input type="hidden" name="costId" value={item.id} />
-                                        <Button type="submit" size="sm" variant="ghost">
-                                          Hapus
+                                        <Button type="submit" size="sm" variant="destructive" className="w-full">
+                                          Hapus <TrashIcon />
                                         </Button>
                                       </form>
                                     </div>
@@ -1094,36 +1099,36 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                           className="mt-3 grid grid-cols-1 gap-2 rounded-md border border-dashed p-3 md:grid-cols-5"
                         >
                           <input type="hidden" name="recipeId" value={selectedRecipe.id} />
-                          <input
+                          <Input
                             name="name"
                             placeholder="Nama biaya"
-                            className="border-input bg-background h-9 rounded-md border px-2 text-sm"
                             required
                           />
-                          <select
-                            name="componentType"
-                            defaultValue="overhead"
-                            className="border-input bg-background h-9 rounded-md border px-2 text-sm"
-                          >
-                            <option value="material">Bahan</option>
-                            <option value="labor">Tenaga kerja</option>
-                            <option value="overhead">Overhead</option>
-                            <option value="other">Lainnya</option>
-                          </select>
-                          <select
-                            name="basis"
-                            defaultValue="per_batch"
-                            className="border-input bg-background h-9 rounded-md border px-2 text-sm"
-                          >
-                            <option value="per_batch">Per batch</option>
-                            <option value="per_unit">Per unit hasil</option>
-                          </select>
-                          <input
+                          <Select name="componentType" defaultValue="overhead">
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="material">Bahan</SelectItem>
+                              <SelectItem value="labor">Tenaga kerja</SelectItem>
+                              <SelectItem value="overhead">Overhead</SelectItem>
+                              <SelectItem value="other">Lainnya</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select name="basis" defaultValue="per_batch">
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="per_batch">Per batch</SelectItem>
+                              <SelectItem value="per_unit">Per unit hasil</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
                             name="amount"
                             type="number"
-                            step="0.0001"
+                            step="100"
                             placeholder="Nominal"
-                            className="border-input bg-background h-9 rounded-md border px-2 text-sm"
                             required
                           />
                           <Button type="submit" size="sm">

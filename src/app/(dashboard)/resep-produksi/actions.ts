@@ -20,7 +20,7 @@ const parseNumber = (value: FormDataEntryValue | null): number => {
 
 const toNullableString = (value: FormDataEntryValue | null): string | null => {
   const parsed = typeof value === "string" ? value.trim() : "";
-  return parsed === "" ? null : parsed;
+  return parsed === "" || parsed === "__none" ? null : parsed;
 };
 
 const toBoolean = (value: FormDataEntryValue | null, fallback = true): boolean => {
