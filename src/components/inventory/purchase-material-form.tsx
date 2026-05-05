@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { InventoryMovementOptionItem } from "@/lib/inventory";
 
 type PurchaseMaterialFormProps = {
@@ -118,87 +119,92 @@ export function PurchaseMaterialForm({ items }: PurchaseMaterialFormProps) {
           </p>
         ) : (
           <form className="grid gap-3 md:grid-cols-3" onSubmit={onSubmit}>
-            <div className="space-y-1.5">
-              <Label htmlFor="purchase-item">Bahan yang dibeli</Label>
-              <select
-                id="purchase-item"
-                value={itemId}
-                onChange={(event) => setItemId(event.target.value)}
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              >
-                {items.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} ({item.defaultUnit.code})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FieldGroup className="contents">
+              <Field>
+                <FieldLabel htmlFor="purchase-item">Bahan yang dibeli</FieldLabel>
+                <Select
+                  value={itemId}
+                  onValueChange={setItemId}
+                >
+                  <SelectTrigger id="purchase-item" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {items.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name} ({item.defaultUnit.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="purchase-qty">
-                Jumlah masuk ({selectedItem?.defaultUnit.code ?? "satuan"})
-              </Label>
-              <Input
-                id="purchase-qty"
-                type="number"
-                step="0.0001"
-                value={qty}
-                onChange={(event) => setQty(event.target.value)}
-                placeholder="Contoh: 25"
-              />
-            </div>
+              <Field>
+                <FieldLabel htmlFor="purchase-qty">
+                  Jumlah masuk ({selectedItem?.defaultUnit.code ?? "satuan"})
+                </FieldLabel>
+                <Input
+                  id="purchase-qty"
+                  type="number"
+                  step="0.0001"
+                  value={qty}
+                  onChange={(event) => setQty(event.target.value)}
+                  placeholder="Contoh: 25"
+                />
+              </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="purchase-unit-cost">Harga beli per satuan</Label>
-              <Input
-                id="purchase-unit-cost"
-                type="number"
-                step="0.0001"
-                value={unitCost}
-                onChange={(event) => setUnitCost(event.target.value)}
-                placeholder="Contoh: 12000"
-              />
-            </div>
+              <Field>
+                <FieldLabel htmlFor="purchase-unit-cost">Harga beli per satuan</FieldLabel>
+                <Input
+                  id="purchase-unit-cost"
+                  type="number"
+                  step="0.0001"
+                  value={unitCost}
+                  onChange={(event) => setUnitCost(event.target.value)}
+                  placeholder="Contoh: 12000"
+                />
+              </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="purchase-supplier">Nama pemasok (opsional)</Label>
-              <Input
-                id="purchase-supplier"
-                value={supplierName}
-                onChange={(event) => setSupplierName(event.target.value)}
-                placeholder="Contoh: Toko Kimia Jaya"
-              />
-            </div>
+              <Field>
+                <FieldLabel htmlFor="purchase-supplier">Nama pemasok (opsional)</FieldLabel>
+                <Input
+                  id="purchase-supplier"
+                  value={supplierName}
+                  onChange={(event) => setSupplierName(event.target.value)}
+                  placeholder="Contoh: Toko Kimia Jaya"
+                />
+              </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="purchase-reference">Nomor nota / PO (opsional)</Label>
-              <Input
-                id="purchase-reference"
-                value={referenceId}
-                onChange={(event) => setReferenceId(event.target.value)}
-                placeholder="Contoh: F-2026-0142"
-              />
-            </div>
+              <Field>
+                <FieldLabel htmlFor="purchase-reference">Nomor nota / PO (opsional)</FieldLabel>
+                <Input
+                  id="purchase-reference"
+                  value={referenceId}
+                  onChange={(event) => setReferenceId(event.target.value)}
+                  placeholder="Contoh: F-2026-0142"
+                />
+              </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="purchase-date">Tanggal & jam transaksi</Label>
-              <Input
-                id="purchase-date"
-                type="datetime-local"
-                value={occurredAt}
-                onChange={(event) => setOccurredAt(event.target.value)}
-              />
-            </div>
+              <Field>
+                <FieldLabel htmlFor="purchase-date">Tanggal & jam transaksi</FieldLabel>
+                <Input
+                  id="purchase-date"
+                  type="datetime-local"
+                  value={occurredAt}
+                  onChange={(event) => setOccurredAt(event.target.value)}
+                />
+              </Field>
 
-            <div className="space-y-1.5 md:col-span-3">
-              <Label htmlFor="purchase-note">Catatan (opsional)</Label>
-              <Input
-                id="purchase-note"
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder="Contoh: barang sudah dicek fisik"
-              />
-            </div>
+              <Field className="md:col-span-3">
+                <FieldLabel htmlFor="purchase-note">Catatan (opsional)</FieldLabel>
+                <Input
+                  id="purchase-note"
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder="Contoh: barang sudah dicek fisik"
+                />
+              </Field>
+            </FieldGroup>
 
             <div className="md:col-span-3 flex flex-wrap items-center gap-3">
               <Button type="submit" disabled={!canSubmit}>

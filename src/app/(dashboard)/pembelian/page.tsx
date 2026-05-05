@@ -7,6 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -50,6 +53,7 @@ const buildQueryString = (params: Record<string, string | undefined>) => {
 
 export default async function PembelianPage({ searchParams }: PembelianPageProps) {
   const params = (await searchParams) ?? {};
+  const selectedItemId = params.itemId && params.itemId !== "all" ? params.itemId : undefined;
   const parsedPage = Number(params.page ?? "1");
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const parsedPageSize = Number(params.pageSize ?? "25");
@@ -60,7 +64,7 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
     getInventoryMovementOptions(),
     getInventoryMovementHistory({
       movementType: "purchase",
-      itemId: params.itemId || undefined,
+      itemId: selectedItemId,
       referenceKeyword: params.referenceKeyword || undefined,
       dateFrom: params.dateFrom || undefined,
       dateTo: params.dateTo || undefined,
@@ -75,7 +79,7 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
   const totalQty = purchases.reduce((sum, row) => sum + row.qtyDelta, 0);
 
   const baseQuery = {
-    itemId: params.itemId,
+    itemId: selectedItemId,
     referenceKeyword: params.referenceKeyword,
     dateFrom: params.dateFrom,
     dateTo: params.dateTo,
@@ -178,80 +182,69 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
         </CardHeader>
         <CardContent>
           <form className="grid grid-cols-1 gap-3 md:grid-cols-5" method="get">
-            <div className="space-y-1">
-              <label htmlFor="filter-bahan" className="text-sm font-medium">
-                Nama bahan
-              </label>
-              <select
-                id="filter-bahan"
-                name="itemId"
-                defaultValue={params.itemId ?? ""}
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              >
-                <option value="">Semua bahan</option>
-                {movementOptions.items.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FieldGroup className="contents">
+              <Field>
+                <FieldLabel htmlFor="filter-bahan">Nama bahan</FieldLabel>
+                <Select name="itemId" defaultValue={selectedItemId ?? "all"}>
+                  <SelectTrigger id="filter-bahan" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua bahan</SelectItem>
+                    {movementOptions.items.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
 
-            <div className="space-y-1">
-              <label htmlFor="filter-dari" className="text-sm font-medium">
-                Mulai tanggal & jam
-              </label>
-              <input
-                id="filter-dari"
-                name="dateFrom"
-                type="datetime-local"
-                defaultValue={params.dateFrom ?? ""}
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              />
-            </div>
+              <Field>
+                <FieldLabel htmlFor="filter-dari">Mulai tanggal & jam</FieldLabel>
+                <Input
+                  id="filter-dari"
+                  name="dateFrom"
+                  type="datetime-local"
+                  defaultValue={params.dateFrom ?? ""}
+                />
+              </Field>
 
-            <div className="space-y-1">
-              <label htmlFor="filter-sampai" className="text-sm font-medium">
-                Sampai tanggal & jam
-              </label>
-              <input
-                id="filter-sampai"
-                name="dateTo"
-                type="datetime-local"
-                defaultValue={params.dateTo ?? ""}
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              />
-            </div>
+              <Field>
+                <FieldLabel htmlFor="filter-sampai">Sampai tanggal & jam</FieldLabel>
+                <Input
+                  id="filter-sampai"
+                  name="dateTo"
+                  type="datetime-local"
+                  defaultValue={params.dateTo ?? ""}
+                />
+              </Field>
 
-            <div className="space-y-1">
-              <label htmlFor="filter-cari" className="text-sm font-medium">
-                Cari di catatan / nomor
-              </label>
-              <input
-                id="filter-cari"
-                name="referenceKeyword"
-                type="text"
-                defaultValue={params.referenceKeyword ?? ""}
-                placeholder="mis. nama toko, nomor nota"
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              />
-            </div>
+              <Field>
+                <FieldLabel htmlFor="filter-cari">Cari di catatan / nomor</FieldLabel>
+                <Input
+                  id="filter-cari"
+                  name="referenceKeyword"
+                  type="text"
+                  defaultValue={params.referenceKeyword ?? ""}
+                  placeholder="mis. nama toko, nomor nota"
+                />
+              </Field>
 
-            <div className="space-y-1">
-              <label htmlFor="filter-ukuran" className="text-sm font-medium">
-                Baris per halaman
-              </label>
-              <select
-                id="filter-ukuran"
-                name="pageSize"
-                defaultValue={String(pageSize)}
-                className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              >
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-            </div>
+              <Field>
+                <FieldLabel htmlFor="filter-ukuran">Baris per halaman</FieldLabel>
+                <Select name="pageSize" defaultValue={String(pageSize)}>
+                  <SelectTrigger id="filter-ukuran" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </FieldGroup>
 
             <input type="hidden" name="page" value="1" />
 

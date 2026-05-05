@@ -8,6 +8,7 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { addRawMaterialAction } from "@/app/(dashboard)/bahan-baku/actions";
 
@@ -72,38 +73,33 @@ export function AddRawMaterialFormCard({ availableUnits }: AddRawMaterialFormCar
 
               <Field>
                 <FieldLabel htmlFor="bb-type">Kelompok bahan</FieldLabel>
-                <select
-                  id="bb-type"
-                  name="itemType"
-                  defaultValue="raw_material"
-                  className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                >
-                  <option value="raw_material">Bahan utama (kain, benang, dll.)</option>
-                  <option value="packaging">Kemasan (plastik, dus, label, dll.)</option>
-                </select>
+                <Select name="itemType" defaultValue="raw_material">
+                  <SelectTrigger id="bb-type" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="raw_material">Bahan utama (kain, benang, dll.)</SelectItem>
+                    <SelectItem value="packaging">Kemasan (plastik, dus, label, dll.)</SelectItem>
+                  </SelectContent>
+                </Select>
               </Field>
 
               <Field className="md:col-span-2 xl:col-span-2">
                 <FieldLabel htmlFor="bb-unit">
                   Satuan utama <span className="text-destructive">*</span>
                 </FieldLabel>
-                <select
-                  id="bb-unit"
-                  name="unitId"
-                  required
-                  defaultValue=""
-                  disabled={availableUnits.length === 0}
-                  className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <option value="" disabled>
-                    Pilih satuan
-                  </option>
-                  {availableUnits.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.code} — {unit.name} ({dimensionHint(unit.dimension)})
-                    </option>
-                  ))}
-                </select>
+                <Select name="unitId" disabled={availableUnits.length === 0}>
+                  <SelectTrigger id="bb-unit" className="w-full">
+                    <SelectValue placeholder="Pilih satuan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableUnits.map((unit) => (
+                      <SelectItem key={unit.id} value={unit.id}>
+                        {unit.code} — {unit.name} ({dimensionHint(unit.dimension)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FieldDescription>
                   Satuan ini jadi satuan utama untuk hitung stok dan harga bahan.
                 </FieldDescription>
@@ -123,7 +119,7 @@ export function AddRawMaterialFormCard({ availableUnits }: AddRawMaterialFormCar
                   id="bb-initial-price"
                   name="initialPrice"
                   type="number"
-                  step="0.0001"
+                  step="1"
                   min="0"
                   placeholder="Contoh: 15000"
                 />
@@ -151,7 +147,7 @@ export function AddRawMaterialFormCard({ availableUnits }: AddRawMaterialFormCar
                   id="bb-opening-cost"
                   name="openingUnitCost"
                   type="number"
-                  step="0.0001"
+                  step="1"
                   min="0"
                   placeholder="Wajib jika stok awal diisi"
                 />
