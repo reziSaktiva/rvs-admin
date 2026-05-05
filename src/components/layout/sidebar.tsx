@@ -54,7 +54,7 @@ export const standaloneNavItems: NavItem[] = [
     items: [
       { label: "Bahan Baku", href: "/bahan-baku", icon: Warehouse },
       { label: "Pembelian Bahan", href: "/pembelian", icon: ShoppingCart },
-      { label: "Riwayat Stok", href: "/riwayat-stok", icon: History },
+      { label: "Riwayat", href: "/riwayat-stok", icon: History },
       { label: "Kalkulator HPP", href: "/hpp", icon: BarChart3 },
       { label: "Resep Produksi", href: "/resep-produksi", icon: Layers },
       { label: "Post Produksi", href: "/produksi", icon: Factory },

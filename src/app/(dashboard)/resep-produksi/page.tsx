@@ -2,7 +2,7 @@ import Link from "next/link";
 import { asc, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -32,6 +32,35 @@ type ResepProduksiPageProps = {
 
 const formatCurrency = (value: number) =>
   value.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+
+const statusLabel = (status: string) => {
+  if (status === "draft") return "Draf";
+  if (status === "active") return "Aktif";
+  if (status === "archived") return "Diarsipkan";
+  return status;
+};
+
+const costTypeLabel = (type: string) => {
+  if (type === "material") return "Bahan";
+  if (type === "labor") return "Tenaga kerja";
+  if (type === "overhead") return "Overhead";
+  if (type === "other") return "Lainnya";
+  return type;
+};
+
+const costBasisLabel = (basis: string) => {
+  if (basis === "per_batch") return "Per batch";
+  if (basis === "per_unit") return "Per unit hasil";
+  return basis;
+};
+
+const itemTypeLabel = (type: string) => {
+  if (type === "raw_material") return "Bahan utama";
+  if (type === "packaging") return "Kemasan";
+  if (type === "finished_good") return "Barang jadi";
+  if (type === "service") return "Jasa";
+  return type;
+};
 
 export default async function ResepProduksiPage({ searchParams }: ResepProduksiPageProps) {
   const params = (await searchParams) ?? {};
@@ -121,9 +150,9 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Resep Produksi</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Resep produksi</h1>
           <p className="text-sm text-muted-foreground">
-            Kelola BOM dan biaya tambahan per resep produksi untuk dasar perhitungan HPP.
+            Kelola daftar bahan (BOM) dan biaya tambahan untuk menghitung HPP dengan lebih akurat.
           </p>
         </div>
         <Button asChild variant="outline">
@@ -133,7 +162,8 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
 
       <Card>
         <CardHeader>
-          <CardTitle>Filter Resep</CardTitle>
+          <CardTitle>Filter resep</CardTitle>
+          <CardDescription>Tampilkan resep berdasarkan status.</CardDescription>
         </CardHeader>
         <CardContent>
           <form method="get" className="flex flex-wrap items-end gap-3">
@@ -145,15 +175,15 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                 className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 min-w-52 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 <option value="">Semua</option>
-                <option value="draft">Draft</option>
-                <option value="active">Active</option>
-                <option value="archived">Archived</option>
+                <option value="draft">Draf</option>
+                <option value="active">Aktif</option>
+                <option value="archived">Diarsipkan</option>
               </select>
             </div>
 
             <Button type="submit">Terapkan</Button>
             <Button asChild type="button" variant="ghost">
-              <Link href="/resep-produksi">Reset</Link>
+              <Link href="/resep-produksi">Hapus filter</Link>
             </Button>
           </form>
         </CardContent>
@@ -161,7 +191,8 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
 
       <Card>
         <CardHeader>
-          <CardTitle>Daftar Resep ({filteredRecipes.length})</CardTitle>
+          <CardTitle>Daftar resep ({filteredRecipes.length})</CardTitle>
+          <CardDescription>Pilih resep untuk melihat detail dan mengubah komponennya.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -169,10 +200,10 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
               <TableRow>
                 <TableHead>Resep</TableHead>
                 <TableHead>Produk</TableHead>
-                <TableHead>Output</TableHead>
+                <TableHead>Hasil</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Material</TableHead>
-                <TableHead>Biaya Tambahan</TableHead>
+                <TableHead>Jumlah bahan</TableHead>
+                <TableHead>Jumlah biaya tambahan</TableHead>
                 <TableHead>Aksi</TableHead>
               </TableRow>
             </TableHeader>
@@ -198,7 +229,7 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                     </TableCell>
                     <TableCell>
                       <Badge variant={recipe.status === "active" ? "default" : "secondary"}>
-                        {recipe.status}
+                        {statusLabel(recipe.status)}
                       </Badge>
                     </TableCell>
                     <TableCell>{recipe.materials.length}</TableCell>
@@ -206,7 +237,7 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                     <TableCell>
                       <Button asChild size="sm" variant="outline">
                         <Link href={`/resep-produksi?recipeId=${recipe.id}${selectedStatus ? `&status=${selectedStatus}` : ""}`}>
-                          Detail
+                          Lihat detail
                         </Link>
                       </Button>
                     </TableCell>
@@ -220,7 +251,8 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
 
       <Card>
         <CardHeader>
-          <CardTitle>Detail Resep</CardTitle>
+          <CardTitle>Detail resep</CardTitle>
+          <CardDescription>Atur status, bahan resep, biaya tambahan, dan lihat ringkasan HPP.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!selectedRecipe ? (
@@ -236,19 +268,19 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase text-muted-foreground">Output & Shrinkage</p>
+                  <p className="text-xs uppercase text-muted-foreground">Hasil & susut</p>
                   <p className="font-medium">
                     {Number(selectedRecipe.outputQty).toLocaleString("id-ID")} {selectedRecipe.outputUnit.code}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Loss: {Number(selectedRecipe.lossPercent ?? 0).toLocaleString("id-ID")}%
+                    Susut: {Number(selectedRecipe.lossPercent ?? 0).toLocaleString("id-ID")}%
                   </p>
                 </div>
                 <div>
                   <p className="text-xs uppercase text-muted-foreground">Status</p>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <Badge variant={selectedRecipe.status === "active" ? "default" : "secondary"}>
-                      {selectedRecipe.status}
+                      {statusLabel(selectedRecipe.status)}
                     </Badge>
                     <form action={updateRecipeStatusAction} className="flex items-center gap-2">
                       <input type="hidden" name="recipeId" value={selectedRecipe.id} />
@@ -257,12 +289,12 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                         defaultValue={selectedRecipe.status}
                         className="border-input bg-background ring-offset-background focus-visible:ring-ring h-8 rounded-md border px-2 text-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                       >
-                        <option value="draft">draft</option>
-                        <option value="active">active</option>
-                        <option value="archived">archived</option>
+                        <option value="draft">Draf</option>
+                        <option value="active">Aktif</option>
+                        <option value="archived">Diarsipkan</option>
                       </select>
                       <Button type="submit" size="sm" variant="outline">
-                        Update Status
+                        Simpan status
                       </Button>
                     </form>
                   </div>
@@ -275,15 +307,15 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">BOM Material</CardTitle>
+                    <CardTitle className="text-base">Daftar bahan (BOM)</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Material</TableHead>
-                          <TableHead>Qty</TableHead>
-                          <TableHead>Waste</TableHead>
+                          <TableHead>Bahan</TableHead>
+                          <TableHead>Jumlah</TableHead>
+                          <TableHead>Susut (%)</TableHead>
                           <TableHead>Aksi</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -372,7 +404,7 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                         </option>
                         {availableItems.map((item) => (
                           <option key={item.id} value={item.id}>
-                            {item.name} ({item.itemType})
+                            {item.name} ({itemTypeLabel(item.itemType)})
                           </option>
                         ))}
                       </select>
@@ -380,7 +412,7 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                         name="qty"
                         type="number"
                         step="0.0001"
-                        placeholder="Qty"
+                        placeholder="Jumlah"
                         className="border-input bg-background h-9 rounded-md border px-2 text-sm"
                         required
                       />
@@ -391,7 +423,7 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                         required
                       >
                         <option value="" disabled>
-                          Unit
+                          Satuan
                         </option>
                         {availableUnits.map((unit) => (
                           <option key={unit.id} value={unit.id}>
@@ -403,7 +435,7 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                         name="wastePercent"
                         type="number"
                         step="0.01"
-                        placeholder="Waste %"
+                        placeholder="Susut %"
                         className="border-input bg-background h-9 rounded-md border px-2 text-sm"
                       />
                       <input
@@ -428,15 +460,15 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">Biaya Tambahan</CardTitle>
+                    <CardTitle className="text-base">Biaya tambahan</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Komponen</TableHead>
-                          <TableHead>Tipe</TableHead>
-                          <TableHead>Basis</TableHead>
+                          <TableHead>Jenis</TableHead>
+                          <TableHead>Dasar hitung</TableHead>
                           <TableHead>Nominal</TableHead>
                           <TableHead>Aksi</TableHead>
                         </TableRow>
@@ -452,8 +484,8 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                           selectedRecipe.costs.map((item) => (
                             <TableRow key={item.id}>
                               <TableCell>{item.name}</TableCell>
-                              <TableCell>{item.componentType}</TableCell>
-                              <TableCell>{item.basis}</TableCell>
+                              <TableCell>{costTypeLabel(item.componentType)}</TableCell>
+                              <TableCell>{costBasisLabel(item.basis)}</TableCell>
                               <TableCell>{formatCurrency(Number(item.amount))}</TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-2">
@@ -470,18 +502,18 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                                       defaultValue={item.componentType}
                                       className="border-input bg-background h-8 rounded-md border px-2 text-xs"
                                     >
-                                      <option value="material">material</option>
-                                      <option value="labor">labor</option>
-                                      <option value="overhead">overhead</option>
-                                      <option value="other">other</option>
+                                      <option value="material">Bahan</option>
+                                      <option value="labor">Tenaga kerja</option>
+                                      <option value="overhead">Overhead</option>
+                                      <option value="other">Lainnya</option>
                                     </select>
                                     <select
                                       name="basis"
                                       defaultValue={item.basis}
                                       className="border-input bg-background h-8 rounded-md border px-2 text-xs"
                                     >
-                                      <option value="per_batch">per_batch</option>
-                                      <option value="per_unit">per_unit</option>
+                                      <option value="per_batch">Per batch</option>
+                                      <option value="per_unit">Per unit hasil</option>
                                     </select>
                                     <input
                                       name="amount"
@@ -525,18 +557,18 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                         defaultValue="overhead"
                         className="border-input bg-background h-9 rounded-md border px-2 text-sm"
                       >
-                        <option value="material">material</option>
-                        <option value="labor">labor</option>
-                        <option value="overhead">overhead</option>
-                        <option value="other">other</option>
+                        <option value="material">Bahan</option>
+                        <option value="labor">Tenaga kerja</option>
+                        <option value="overhead">Overhead</option>
+                        <option value="other">Lainnya</option>
                       </select>
                       <select
                         name="basis"
                         defaultValue="per_batch"
                         className="border-input bg-background h-9 rounded-md border px-2 text-sm"
                       >
-                        <option value="per_batch">per_batch</option>
-                        <option value="per_unit">per_unit</option>
+                        <option value="per_batch">Per batch</option>
+                        <option value="per_unit">Per unit hasil</option>
                       </select>
                       <input
                         name="amount"
@@ -556,7 +588,7 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Ringkasan HPP Resep</CardTitle>
+                  <CardTitle className="text-base">Ringkasan HPP resep</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {hppError ? (
@@ -564,19 +596,19 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
                   ) : selectedHpp ? (
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                       <div>
-                        <p className="text-xs uppercase text-muted-foreground">Material Cost</p>
+                        <p className="text-xs uppercase text-muted-foreground">Biaya bahan</p>
                         <p className="font-semibold">{formatCurrency(selectedHpp.totals.materialCost)}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase text-muted-foreground">Additional Cost</p>
+                        <p className="text-xs uppercase text-muted-foreground">Biaya tambahan</p>
                         <p className="font-semibold">{formatCurrency(selectedHpp.totals.additionalCost)}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase text-muted-foreground">Total Batch Cost</p>
+                        <p className="text-xs uppercase text-muted-foreground">Total biaya per batch</p>
                         <p className="font-semibold">{formatCurrency(selectedHpp.totals.totalBatchCost)}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase text-muted-foreground">HPP / Output</p>
+                        <p className="text-xs uppercase text-muted-foreground">HPP per unit hasil</p>
                         <p className="font-semibold">{formatCurrency(selectedHpp.totals.hppPerOutputUnit)}</p>
                       </div>
                     </div>
