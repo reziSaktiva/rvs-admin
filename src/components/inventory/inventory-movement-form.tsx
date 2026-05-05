@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { InventoryMovementOptionItem, StockMovementType } from "@/lib/inventory";
 
 type InventoryMovementFormProps = {
@@ -164,8 +164,8 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
           </p>
         ) : (
           <form className="grid gap-3 md:grid-cols-2" onSubmit={onSubmit}>
-            <div className="space-y-1.5">
-              <Label htmlFor="itemId">Pilih bahan</Label>
+            <Field>
+              <FieldLabel htmlFor="itemId">Pilih bahan</FieldLabel>
               <select
                 id="itemId"
                 className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
@@ -179,10 +179,10 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
                   </option>
                 ))}
               </select>
-            </div>
+            </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="movementType">Jenis perubahan</Label>
+            <Field>
+              <FieldLabel htmlFor="movementType">Jenis perubahan</FieldLabel>
               <select
                 id="movementType"
                 className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
@@ -196,12 +196,12 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
                   </option>
                 ))}
               </select>
-            </div>
+            </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="qtyDelta">
+            <Field>
+              <FieldLabel htmlFor="qtyDelta">
                 Jumlah ({selectedItem?.defaultUnit.code ?? "satuan"})
-              </Label>
+              </FieldLabel>
               <Input
                 id="qtyDelta"
                 type="number"
@@ -210,21 +210,21 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
                 onChange={(e) => setQtyInput(e.target.value)}
                 required
               />
-              <p className="text-xs text-muted-foreground">
+              <FieldDescription>
                 Tulis angka positif saja. Sistem menganggap ini sebagai stok{" "}
                 {isIncoming ? "masuk" : "keluar"}.
-              </p>
-            </div>
+              </FieldDescription>
+            </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="unitCost">
+            <Field>
+              <FieldLabel htmlFor="unitCost">
                 Harga per satuan{" "}
                 {requiresUnitCost
                   ? "(wajib untuk saldo awal & pembelian)"
                   : isIncoming
                     ? "(disarankan diisi)"
                     : "(boleh kosong)"}
-              </Label>
+              </FieldLabel>
               <Input
                 id="unitCost"
                 type="number"
@@ -234,37 +234,37 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
                 placeholder="contoh: 12500"
                 required={requiresUnitCost}
               />
-            </div>
+            </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="referenceType">Jenis rujukan (opsional)</Label>
+            <Field>
+              <FieldLabel htmlFor="referenceType">Jenis rujukan (opsional)</FieldLabel>
               <Input
                 id="referenceType"
                 value={referenceType}
                 onChange={(e) => setReferenceType(e.target.value)}
                 placeholder="Contoh: nota_pembelian, produksi"
               />
-            </div>
+            </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="referenceId">Nomor / kode rujukan (opsional)</Label>
+            <Field>
+              <FieldLabel htmlFor="referenceId">Nomor / kode rujukan (opsional)</FieldLabel>
               <Input
                 id="referenceId"
                 value={referenceId}
                 onChange={(e) => setReferenceId(e.target.value)}
                 placeholder="Contoh: PO-2026-001"
               />
-            </div>
+            </Field>
 
-            <div className="space-y-1.5 md:col-span-2">
-              <Label htmlFor="note">Catatan (opsional)</Label>
+            <Field className="md:col-span-2">
+              <FieldLabel htmlFor="note">Catatan (opsional)</FieldLabel>
               <Input
                 id="note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Contoh: koreksi hitung fisik gudang"
               />
-            </div>
+            </Field>
 
             <div className="md:col-span-2 flex flex-wrap items-center gap-3">
               <Button disabled={isSubmitting || isSubmitBlocked} type="submit">
@@ -286,13 +286,13 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
               </p>
             )}
 
-            <div className="md:col-span-2 flex items-center gap-3">
+            <FieldGroup className="md:col-span-2 flex items-center gap-3">
               {message && (
                 <p className={`text-sm ${isError ? "text-destructive" : "text-emerald-600"}`}>
                   {message}
                 </p>
               )}
-            </div>
+            </FieldGroup>
           </form>
         )}
       </CardContent>
