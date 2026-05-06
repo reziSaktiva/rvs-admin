@@ -383,6 +383,48 @@ export async function updateRecipeStatusAction(formData: FormData) {
   revalidatePath("/hpp");
 }
 
+export async function updateRecipeCoreAction(formData: FormData) {
+  const recipeId = String(formData.get("recipeId") ?? "").trim();
+  const statusFilter = String(formData.get("statusFilter") ?? "").trim() || undefined;
+  const status = String(formData.get("status") ?? "").trim();
+
+  if (!recipeId) {
+    redirect(routeToError("data_resep_tidak_lengkap", undefined, statusFilter));
+  }
+
+  let recipeCore: ReturnType<typeof validateRecipeCore>;
+  try {
+    recipeCore = validateRecipeCore(formData);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "VALIDASI_GAGAL";
+    redirect(routeToError(code.toLowerCase(), recipeId, statusFilter));
+  }
+
+  if (!["draft", "active", "archived"].includes(status)) {
+    redirect(routeToError("status_resep_invalid", recipeId, statusFilter));
+  }
+
+  try {
+    await db
+      .update(recipes)
+      .set({
+        ...recipeCore!,
+        status: status as "draft" | "active" | "archived",
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(recipes.id, recipeId));
+  } catch (error) {
+    if (isUniqueViolation(error, "recipes_product_variant_id_name_key")) {
+      redirect(routeToError("nama_resep_duplikat", recipeId, statusFilter));
+    }
+    throw error;
+  }
+
+  revalidatePath("/resep-produksi");
+  revalidatePath("/hpp");
+  redirect(routeToRecipe(recipeId, statusFilter));
+}
+
 export async function addRecipeMaterialAction(formData: FormData) {
   const recipeId = String(formData.get("recipeId") ?? "").trim();
   const itemId = String(formData.get("itemId") ?? "").trim();
