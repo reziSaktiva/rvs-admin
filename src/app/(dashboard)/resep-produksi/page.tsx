@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getResepProduksiPageData } from "./data";
-import { RecipeFilterCard } from "./recipe-filter-card";
-import { RecipeListCard } from "./recipe-list-card";
-import { errorLabel, isRecipeStatus } from "./view-model";
+import { RecipeFilterCard } from "./components/recipe-filter-card";
+import { RecipeListCard } from "./components/recipe-list-card";
+import { errorLabel, isRecipeStatus } from "./components/view-model";
 
 type ResepProduksiPageProps = {
   searchParams?: Promise<{

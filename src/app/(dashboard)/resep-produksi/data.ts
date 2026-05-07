@@ -1,6 +1,6 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import type { RecipeStatus } from "./view-model";
+import type { RecipeStatus } from "./components/view-model";
 
 export async function getResepProduksiPageData(selectedStatus?: RecipeStatus) {
   const [recipeRows, availableItems, availableUnits, categories, products, allVariants] = await Promise.all([

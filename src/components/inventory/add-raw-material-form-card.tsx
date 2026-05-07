@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { addRawMaterialAction } from "@/app/(dashboard)/bahan-baku/actions";
+import { OptionalOpeningStockFields } from "./optional-opening-stock-fields";
 
 type UnitOption = {
   id: string;
@@ -107,56 +108,7 @@ export function AddRawMaterialFormCard({ availableUnits }: AddRawMaterialFormCar
             </FieldGroup>
           </FieldSet>
 
-          <FieldSet>
-            <FieldLegend>Harga dan stok awal (opsional)</FieldLegend>
-            <FieldDescription>
-              Isi bagian ini jika Anda sudah punya data awal saat mulai mencatat.
-            </FieldDescription>
-            <FieldGroup className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <Field>
-                <FieldLabel htmlFor="bb-initial-price">Harga awal per satuan</FieldLabel>
-                <Input
-                  id="bb-initial-price"
-                  name="initialPrice"
-                  type="number"
-                  step="1"
-                  min="0"
-                  placeholder="Contoh: 15000"
-                />
-                <FieldDescription>
-                  Dipakai sebagai acuan biaya sampai ada data pembelian terbaru.
-                </FieldDescription>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="bb-opening-qty">Stok awal</FieldLabel>
-                <Input
-                  id="bb-opening-qty"
-                  name="openingQty"
-                  type="number"
-                  step="0.0001"
-                  min="0"
-                  placeholder="Contoh: 100"
-                />
-                <FieldDescription>Isi jika mulai mencatat dari saldo yang sudah ada.</FieldDescription>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="bb-opening-cost">Harga per satuan untuk stok awal</FieldLabel>
-                <Input
-                  id="bb-opening-cost"
-                  name="openingUnitCost"
-                  type="number"
-                  step="1"
-                  min="0"
-                  placeholder="Wajib jika stok awal diisi"
-                />
-                <FieldDescription>
-                  Jika kosong, sistem pakai harga awal per satuan (jika diisi).
-                </FieldDescription>
-              </Field>
-            </FieldGroup>
-          </FieldSet>
+          <OptionalOpeningStockFields />
 
           <div className="flex items-end">
             <Button type="submit" disabled={availableUnits.length === 0}>
