@@ -21,6 +21,7 @@ export type RawMaterialAssetItem = {
   qtyOnHand: number;
   unit: UnitSummary;
   avgCostPerUnit: number;
+  initialPrice: number;
   assetValue: number;
   updatedAt: string | null;
 };
@@ -34,6 +35,7 @@ export type InventoryMovementOptionItem = {
   id: string;
   name: string;
   defaultUnit: UnitSummary;
+  avgCostPerUnit: number | null;
   balance: {
     qtyOnHand: number;
     unit: UnitSummary;
@@ -191,27 +193,45 @@ const findConversionFactor = (
 };
 
 export const getRawMaterialAssetSummary = async (): Promise<RawMaterialAssetSummary> => {
-  const balances = await db.query.costItemInventoryBalances.findMany({
-    with: {
-      item: {
-        columns: {
-          id: true,
-          name: true,
-          itemType: true,
-          isActive: true,
+  const [balances, prices] = await Promise.all([
+    db.query.costItemInventoryBalances.findMany({
+      with: {
+        item: {
+          columns: {
+            id: true,
+            name: true,
+            itemType: true,
+            isActive: true,
+          },
+        },
+        unit: {
+          columns: {
+            id: true,
+            code: true,
+            name: true,
+            dimension: true,
+          },
         },
       },
-      unit: {
-        columns: {
-          id: true,
-          code: true,
-          name: true,
-          dimension: true,
-        },
+      orderBy: (table, { desc: descOrder }) => [descOrder(table.updatedAt)],
+    }),
+    db.query.costItemPrices.findMany({
+      columns: {
+        itemId: true,
+        pricePerUnit: true,
       },
-    },
-    orderBy: (table, { desc: descOrder }) => [descOrder(table.updatedAt)],
-  });
+      orderBy: (table, { desc: descOrder }) => [
+        descOrder(table.effectiveFrom),
+        descOrder(table.createdAt),
+      ],
+    }),
+  ]);
+  const latestPriceByItemId = new Map<string, number>();
+  for (const price of prices) {
+    if (!latestPriceByItemId.has(price.itemId)) {
+      latestPriceByItemId.set(price.itemId, toNumber(price.pricePerUnit, 0));
+    }
+  }
 
   const items: RawMaterialAssetItem[] = balances
     .filter((balance) => balance.item.isActive)
@@ -231,6 +251,7 @@ export const getRawMaterialAssetSummary = async (): Promise<RawMaterialAssetSumm
         dimension: balance.unit.dimension,
       },
       avgCostPerUnit: toNumber(balance.avgCostPerUnit, 0),
+      initialPrice: latestPriceByItemId.get(balance.item.id) ?? 0,
       assetValue: toNumber(balance.assetValue, 0),
       updatedAt: balance.updatedAt ?? null,
     }));
@@ -286,6 +307,9 @@ export const getInventoryMovementOptions = async (): Promise<InventoryMovementOp
       },
     ])
   );
+  const avgCostByItemId = new Map(
+    balances.map((balance) => [balance.itemId, toNumber(balance.avgCostPerUnit, 0)])
+  );
 
   return {
     items: items.map((item) => ({
@@ -297,6 +321,7 @@ export const getInventoryMovementOptions = async (): Promise<InventoryMovementOp
         name: item.defaultUnit.name,
         dimension: item.defaultUnit.dimension,
       },
+      avgCostPerUnit: avgCostByItemId.get(item.id) ?? null,
       balance: balanceByItemId.get(item.id) ?? null,
     })),
     movementTypes: INVENTORY_MOVEMENT_TYPES,

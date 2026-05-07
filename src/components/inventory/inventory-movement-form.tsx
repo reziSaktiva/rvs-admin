@@ -11,6 +11,7 @@ import type { InventoryMovementOptionItem, StockMovementType } from "@/lib/inven
 type InventoryMovementFormProps = {
   items: InventoryMovementOptionItem[];
   movementTypes: StockMovementType[];
+  defaultItemId?: string;
 };
 
 const INCOMING_MOVEMENT_TYPES: StockMovementType[] = [
@@ -38,14 +39,47 @@ const movementTypeLabel: Record<StockMovementType, string> = {
   transfer_out: "Transfer keluar gudang",
 };
 
-export function InventoryMovementForm({ items, movementTypes }: InventoryMovementFormProps) {
+const getInitialItemId = (items: InventoryMovementOptionItem[], defaultItemId?: string) => {
+  if (defaultItemId && items.some((item) => item.id === defaultItemId)) {
+    return defaultItemId;
+  }
+  return items[0]?.id ?? "";
+};
+
+const getPrefillValues = (item: InventoryMovementOptionItem | null) => {
+  if (!item) return { qty: "", unitCost: "" };
+
+  const qty =
+    item.balance && item.balance.unit.id === item.defaultUnit.id && item.balance.qtyOnHand > 0
+      ? String(item.balance.qtyOnHand)
+      : "";
+  const unitCost = item.avgCostPerUnit && item.avgCostPerUnit > 0 ? String(item.avgCostPerUnit) : "";
+
+  return { qty, unitCost };
+};
+
+export function InventoryMovementForm({
+  items,
+  movementTypes,
+  defaultItemId,
+}: InventoryMovementFormProps) {
   const router = useRouter();
-  const [itemId, setItemId] = useState(items[0]?.id ?? "");
+  const initialItemId = useMemo(
+    () => getInitialItemId(items, defaultItemId),
+    [items, defaultItemId]
+  );
+  const initialItem = useMemo(
+    () => items.find((item) => item.id === initialItemId) ?? null,
+    [items, initialItemId]
+  );
+  const initialPrefill = useMemo(() => getPrefillValues(initialItem), [initialItem]);
+
+  const [itemId, setItemId] = useState(initialItemId);
   const [movementType, setMovementType] = useState<StockMovementType>(
     movementTypes[0] ?? "purchase"
   );
-  const [qtyInput, setQtyInput] = useState("");
-  const [unitCost, setUnitCost] = useState("");
+  const [qtyInput, setQtyInput] = useState(initialPrefill.qty);
+  const [unitCost, setUnitCost] = useState(initialPrefill.unitCost);
   const [referenceType, setReferenceType] = useState("");
   const [referenceId, setReferenceId] = useState("");
   const [note, setNote] = useState("");
@@ -170,7 +204,14 @@ export function InventoryMovementForm({ items, movementTypes }: InventoryMovemen
                 id="itemId"
                 className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                 value={itemId}
-                onChange={(e) => setItemId(e.target.value)}
+                onChange={(e) => {
+                  const nextItemId = e.target.value;
+                  setItemId(nextItemId);
+                  const nextItem = items.find((item) => item.id === nextItemId) ?? null;
+                  const prefill = getPrefillValues(nextItem);
+                  setQtyInput(prefill.qty);
+                  setUnitCost(prefill.unitCost);
+                }}
                 required
               >
                 {items.map((item) => (

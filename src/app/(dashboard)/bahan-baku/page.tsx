@@ -241,6 +241,7 @@ export default async function BahanBakuPage() {
                 <TableHead>Kelompok</TableHead>
                 <TableHead>Jumlah stok</TableHead>
                 <TableHead>Harga rata-rata per satuan</TableHead>
+                <TableHead>Harga acuan bahan</TableHead>
                 <TableHead className="text-right">Nilai persediaan</TableHead>
               </TableRow>
             </TableHeader>
@@ -260,6 +261,7 @@ export default async function BahanBakuPage() {
                       {item.qtyOnHand.toLocaleString("id-ID")} {item.unit.code}
                     </TableCell>
                     <TableCell className="tabular-nums">{formatCurrency(item.avgCostPerUnit)}</TableCell>
+                    <TableCell className="tabular-nums">{formatCurrency(item.initialPrice)}</TableCell>
                     <TableCell className="text-right tabular-nums font-medium">
                       {formatCurrency(item.assetValue)}
                     </TableCell>
