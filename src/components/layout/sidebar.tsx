@@ -240,7 +240,7 @@ export function Sidebar() {
               size="lg"
               asChild
               className={cn(
-                "h-auto rounded-xl border border-sidebar-border/80 bg-gradient-to-r from-sidebar-accent/80 to-sidebar-accent/40 px-2.5 py-2",
+                "h-auto rounded-xl border border-sidebar-border/80 bg-linear-to-r from-sidebar-accent/80 to-sidebar-accent/40 px-2.5 py-2",
                 "data-[slot=sidebar-menu-button]:p-2!"
               )}
             >
