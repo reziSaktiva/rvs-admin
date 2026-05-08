@@ -1,6 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import type { RecipeRow, ResepProduksiPageData } from "../data";
 import { statusLabel, type RecipeStatus } from "./view-model";
 import { ManageRecipeDrawer } from "./drawers/manage-recipe-drawer";
@@ -14,6 +21,10 @@ type RecipeListCardProps = {
   categories: ResepProduksiPageData["categories"];
   products: ResepProduksiPageData["products"];
   allVariants: ResepProduksiPageData["allVariants"];
+  page: number;
+  pageSize: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
 };
 
 export function RecipeListCard({
@@ -24,7 +35,20 @@ export function RecipeListCard({
   categories,
   products,
   allVariants,
+  page,
+  pageSize,
+  hasNextPage,
+  hasPreviousPage,
 }: RecipeListCardProps) {
+  const shouldShowPagination = hasPreviousPage || hasNextPage;
+  const buildQuery = (nextPage: number) => {
+    const query = new URLSearchParams();
+    query.set("page", String(nextPage));
+    query.set("pageSize", String(pageSize));
+    if (selectedStatus) query.set("status", selectedStatus);
+    return query.toString();
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -95,6 +119,29 @@ export function RecipeListCard({
             )}
           </TableBody>
         </Table>
+        {shouldShowPagination ? (
+          <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              Halaman {page} · {recipes.length} baris
+            </p>
+            <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href={`?${buildQuery(Math.max(1, page - 1))}`}
+                    className={!hasPreviousPage ? "pointer-events-none opacity-50" : undefined}
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    href={`?${buildQuery(page + 1)}`}
+                    className={!hasNextPage ? "pointer-events-none opacity-50" : undefined}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

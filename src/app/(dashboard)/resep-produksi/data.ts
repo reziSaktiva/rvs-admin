@@ -2,7 +2,17 @@ import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import type { RecipeStatus } from "./components/view-model";
 
-export async function getResepProduksiPageData(selectedStatus?: RecipeStatus) {
+type ResepProduksiPaginationInput = {
+  page: number;
+  pageSize: number;
+};
+
+export async function getResepProduksiPageData(
+  selectedStatus: RecipeStatus | undefined,
+  pagination: ResepProduksiPaginationInput
+) {
+  const { page, pageSize } = pagination;
+  const offset = (page - 1) * pageSize;
   const [recipeRows, availableItems, availableUnits, categories, products, allVariants] = await Promise.all([
     db.query.recipes.findMany({
       where: selectedStatus ? (table) => eq(table.status, selectedStatus) : undefined,
@@ -71,6 +81,8 @@ export async function getResepProduksiPageData(selectedStatus?: RecipeStatus) {
         },
       },
       orderBy: (table) => [desc(table.updatedAt)],
+      limit: pageSize + 1,
+      offset,
     }),
     db.query.costItems.findMany({
       columns: {
@@ -120,8 +132,18 @@ export async function getResepProduksiPageData(selectedStatus?: RecipeStatus) {
       orderBy: (table) => [asc(table.createdAt)],
     }),
   ]);
+  const hasNextPage = recipeRows.length > pageSize;
+  const pagedRecipeRows = hasNextPage ? recipeRows.slice(0, pageSize) : recipeRows;
 
-  return { recipeRows, availableItems, availableUnits, categories, products, allVariants };
+  return {
+    recipeRows: pagedRecipeRows,
+    availableItems,
+    availableUnits,
+    categories,
+    products,
+    allVariants,
+    hasNextPage,
+  };
 }
 
 export type ResepProduksiPageData = Awaited<ReturnType<typeof getResepProduksiPageData>>;
