@@ -18,9 +18,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { PurchaseMaterialForm } from "@/components/inventory/purchase-material-form";
 import { getInventoryMovementHistory, getInventoryMovementOptions } from "@/lib/inventory";
-import { Banknote, ClipboardList, Package, ShoppingCart, Warehouse } from "lucide-react";
+import { Banknote, ClipboardList, Package, Plus, Warehouse } from "lucide-react";
 
 type PembelianPageProps = {
   searchParams?: Promise<{
@@ -75,6 +83,8 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
 
   const hasNextPage = rows.length > pageSize;
   const purchases = hasNextPage ? rows.slice(0, pageSize) : rows;
+  const hasPreviousPage = page > 1;
+  const shouldShowPagination = hasPreviousPage || hasNextPage;
   const totalPurchaseValue = purchases.reduce((sum, row) => sum + (row.valueDelta ?? 0), 0);
   const totalQty = purchases.reduce((sum, row) => sum + row.qtyDelta, 0);
 
@@ -88,56 +98,59 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-start lg:justify-between">
+      <header className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Inventory
+          </p>
           <h1 className="text-2xl font-semibold tracking-tight">Pembelian bahan</h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Catat pembelian supaya stok bertambah dan harga rata-rata per satuan di gudang ikut
-            diperbarui. Isi nomor nota atau nama pemasok agar mudah dicari lagi.
+            Catat pembelian agar stok dan biaya bahan ter-update otomatis. Mulai dari form sederhana,
+            lalu gunakan filter jika ingin audit riwayat lebih detail.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="mr-2 size-4" aria-hidden />
+                Catat pembelian baru
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Catat pembelian bahan</DialogTitle>
+                <DialogDescription>
+                  Isi bahan, jumlah masuk, dan harga beli per satuan. Setelah disimpan, stok dan biaya
+                  rata-rata akan ter-update otomatis.
+                </DialogDescription>
+              </DialogHeader>
+              <PurchaseMaterialForm items={movementOptions.items} />
+            </DialogContent>
+          </Dialog>
           <Button asChild size="sm" variant="outline">
             <Link href="/bahan-baku">
               <Warehouse className="mr-2 size-4" aria-hidden />
-              Bahan baku
+              Kelola bahan
             </Link>
           </Button>
           <Button asChild size="sm" variant="outline">
             <Link href="/riwayat-stok?movementType=purchase">
               <ClipboardList className="mr-2 size-4" aria-hidden />
-              Riwayat pembelian
+              Riwayat lengkap
             </Link>
           </Button>
         </div>
       </header>
 
-      <section
-        aria-label="Panduan singkat"
-        className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground"
-      >
-        <p className="font-medium text-foreground">Cara memakai halaman ini</p>
-        <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
-          <li>Isi formulir di bawah: pilih bahan, jumlah yang masuk, dan harga beli per satuan.</li>
-          <li>
-            Bagian bawah menampilkan riwayat pembelian; gunakan filter jika ingin melihat periode
-            atau bahan tertentu.
-          </li>
-          <li>
-            Jika bahan belum ada di daftar pilih, tambahkan dulu di halaman Bahan baku lalu kembali
-            ke sini.
-          </li>
-        </ol>
-      </section>
-
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Ringkasan filter">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Ringkasan pembelian">
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Package className="size-4 shrink-0" aria-hidden />
-              <CardTitle className="text-base font-medium">Transaksi di halaman ini</CardTitle>
+              <CardTitle className="text-base font-medium">Baris transaksi tampil</CardTitle>
             </div>
-            <CardDescription>Jumlah baris tabel sesuai filter dan halaman aktif.</CardDescription>
+            <CardDescription>Sesuai filter dan halaman yang sedang dibuka.</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">{purchases.length}</p>
@@ -145,44 +158,36 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <ShoppingCart className="size-4 shrink-0" aria-hidden />
-              <CardTitle className="text-base font-medium">Total bahan masuk</CardTitle>
-            </div>
-            <CardDescription>Penjumlahan jumlah (sesuai satuan di tiap baris) untuk data yang tampil.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold tabular-nums">{totalQty.toLocaleString("id-ID")}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Banknote className="size-4 shrink-0" aria-hidden />
-              <CardTitle className="text-base font-medium">Perkiraan nilai pembelian</CardTitle>
+              <CardTitle className="text-base font-medium">Total nilai pembelian</CardTitle>
             </div>
-            <CardDescription>Jumlah uang menurut nilai yang tercatat pada baris yang sama.</CardDescription>
+            <CardDescription>
+              Akumulasi nilai dari data yang tampil pada tabel saat ini.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold tabular-nums">{formatCurrency(totalPurchaseValue)}</p>
+            <p className="text-2xl font-semibold tabular-nums">
+              {formatCurrency(totalPurchaseValue)}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Total qty masuk: {totalQty.toLocaleString("id-ID")}
+            </p>
           </CardContent>
         </Card>
       </section>
 
-      <PurchaseMaterialForm items={movementOptions.items} />
-
       <Card>
         <CardHeader>
-          <CardTitle>Saring riwayat</CardTitle>
+          <CardTitle>Filter riwayat pembelian</CardTitle>
           <CardDescription>
-            Persempit daftar berdasarkan bahan, rentang waktu, atau kata kunci di kolom referensi.
+            Mulai dari filter cepat. Untuk rentang tanggal, buka bagian filter lanjutan.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="grid grid-cols-1 gap-3 md:grid-cols-5" method="get">
-            <FieldGroup className="contents">
+          <form className="space-y-3" method="get">
+            <FieldGroup className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <Field>
                 <FieldLabel htmlFor="filter-bahan">Nama bahan</FieldLabel>
                 <Select name="itemId" defaultValue={selectedItemId ?? "all"}>
@@ -201,27 +206,7 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="filter-dari">Mulai tanggal & jam</FieldLabel>
-                <Input
-                  id="filter-dari"
-                  name="dateFrom"
-                  type="datetime-local"
-                  defaultValue={params.dateFrom ?? ""}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="filter-sampai">Sampai tanggal & jam</FieldLabel>
-                <Input
-                  id="filter-sampai"
-                  name="dateTo"
-                  type="datetime-local"
-                  defaultValue={params.dateTo ?? ""}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="filter-cari">Cari di catatan / nomor</FieldLabel>
+                <FieldLabel htmlFor="filter-cari">Cari referensi</FieldLabel>
                 <Input
                   id="filter-cari"
                   name="referenceKeyword"
@@ -230,7 +215,6 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
                   placeholder="mis. nama toko, nomor nota"
                 />
               </Field>
-
               <Field>
                 <FieldLabel htmlFor="filter-ukuran">Baris per halaman</FieldLabel>
                 <Select name="pageSize" defaultValue={String(pageSize)}>
@@ -244,16 +228,46 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
                   </SelectContent>
                 </Select>
               </Field>
+              <Field>
+                <FieldLabel>&nbsp;</FieldLabel>
+                <div className="flex gap-2">
+                  <Button type="submit" className="flex-1">
+                    Terapkan
+                  </Button>
+                  <Button asChild type="button" variant="ghost">
+                    <Link href="/pembelian">Reset</Link>
+                  </Button>
+                </div>
+              </Field>
             </FieldGroup>
 
-            <input type="hidden" name="page" value="1" />
+            <details className="rounded-md border border-border bg-muted/30 p-3">
+              <summary className="cursor-pointer text-sm font-medium">
+                Filter lanjutan (tanggal)
+              </summary>
+              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="filter-dari">Mulai tanggal & jam</FieldLabel>
+                  <Input
+                    id="filter-dari"
+                    name="dateFrom"
+                    type="datetime-local"
+                    defaultValue={params.dateFrom ?? ""}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="filter-sampai">Sampai tanggal & jam</FieldLabel>
+                  <Input
+                    id="filter-sampai"
+                    name="dateTo"
+                    type="datetime-local"
+                    defaultValue={params.dateTo ?? ""}
+                  />
+                </Field>
+              </div>
+            </details>
 
-            <div className="md:col-span-5 flex flex-wrap items-center gap-2">
-              <Button type="submit">Terapkan</Button>
-              <Button asChild type="button" variant="ghost">
-                <Link href="/pembelian">Hapus filter</Link>
-              </Button>
-            </div>
+            <input type="hidden" name="page" value="1" />
           </form>
         </CardContent>
       </Card>
@@ -308,33 +322,35 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
             </TableBody>
           </Table>
 
-          <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              Halaman {page} · {purchases.length} baris
-            </p>
-            <div className="flex items-center gap-2">
-              <Button asChild variant="outline" size="sm" disabled={page <= 1}>
-                <Link
-                  href={`/pembelian?${buildQueryString({
-                    ...baseQuery,
-                    page: String(Math.max(1, page - 1)),
-                  })}`}
-                >
-                  Sebelumnya
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm" disabled={!hasNextPage}>
-                <Link
-                  href={`/pembelian?${buildQueryString({
-                    ...baseQuery,
-                    page: String(page + 1),
-                  })}`}
-                >
-                  Berikutnya
-                </Link>
-              </Button>
+          {shouldShowPagination ? (
+            <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                Halaman {page} · {purchases.length} baris
+              </p>
+              <div className="flex items-center gap-2">
+                <Button asChild variant="outline" size="sm" disabled={!hasPreviousPage}>
+                  <Link
+                    href={`/pembelian?${buildQueryString({
+                      ...baseQuery,
+                      page: String(Math.max(1, page - 1)),
+                    })}`}
+                  >
+                    Sebelumnya
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" disabled={!hasNextPage}>
+                  <Link
+                    href={`/pembelian?${buildQueryString({
+                      ...baseQuery,
+                      page: String(page + 1),
+                    })}`}
+                  >
+                    Berikutnya
+                  </Link>
+                </Button>
+              </div>
             </div>
-          </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>
