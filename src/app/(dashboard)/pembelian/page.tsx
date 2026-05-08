@@ -26,6 +26,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { PurchaseMaterialForm } from "@/components/inventory/purchase-material-form";
 import { getInventoryMovementHistory, getInventoryMovementOptions } from "@/lib/inventory";
 import { Banknote, ClipboardList, Package, Plus, Warehouse } from "lucide-react";
@@ -327,28 +334,28 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
               <p>
                 Halaman {page} · {purchases.length} baris
               </p>
-              <div className="flex items-center gap-2">
-                <Button asChild variant="outline" size="sm" disabled={!hasPreviousPage}>
-                  <Link
-                    href={`/pembelian?${buildQueryString({
-                      ...baseQuery,
-                      page: String(Math.max(1, page - 1)),
-                    })}`}
-                  >
-                    Sebelumnya
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" size="sm" disabled={!hasNextPage}>
-                  <Link
-                    href={`/pembelian?${buildQueryString({
-                      ...baseQuery,
-                      page: String(page + 1),
-                    })}`}
-                  >
-                    Berikutnya
-                  </Link>
-                </Button>
-              </div>
+              <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href={`/pembelian?${buildQueryString({
+                        ...baseQuery,
+                        page: String(Math.max(1, page - 1)),
+                      })}`}
+                      className={!hasPreviousPage ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationNext
+                      href={`/pembelian?${buildQueryString({
+                        ...baseQuery,
+                        page: String(page + 1),
+                      })}`}
+                      className={!hasNextPage ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
           ) : null}
         </CardContent>

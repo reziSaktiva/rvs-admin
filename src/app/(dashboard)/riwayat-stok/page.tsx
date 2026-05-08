@@ -10,6 +10,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   getInventoryMovementHistory,
   getInventoryMovementOptions,
   INVENTORY_MOVEMENT_TYPES,
@@ -92,6 +99,8 @@ export default async function MutasiStokPage({ searchParams }: MutasiStokPagePro
     }),
   ]);
   const hasNextPage = movementRows.length > pageSize;
+  const hasPreviousPage = page > 1;
+  const shouldShowPagination = hasPreviousPage || hasNextPage;
   const movements = hasNextPage ? movementRows.slice(0, pageSize) : movementRows;
 
   const baseQuery = {
@@ -315,43 +324,35 @@ export default async function MutasiStokPage({ searchParams }: MutasiStokPagePro
               )}
             </TableBody>
           </Table>
-          <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
-            <p>
-              Halaman {page} · Menampilkan {movements.length} data
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-              >
-                <Link
-                  href={`/riwayat-stok?${buildQueryString({
-                    ...baseQuery,
-                    page: String(Math.max(1, page - 1)),
-                  })}`}
-                >
-                  Sebelumnya
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                disabled={!hasNextPage}
-              >
-                <Link
-                  href={`/riwayat-stok?${buildQueryString({
-                    ...baseQuery,
-                    page: String(page + 1),
-                  })}`}
-                >
-                  Berikutnya
-                </Link>
-              </Button>
+          {shouldShowPagination ? (
+            <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
+              <p>
+                Halaman {page} · Menampilkan {movements.length} data
+              </p>
+              <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href={`/riwayat-stok?${buildQueryString({
+                        ...baseQuery,
+                        page: String(Math.max(1, page - 1)),
+                      })}`}
+                      className={!hasPreviousPage ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationNext
+                      href={`/riwayat-stok?${buildQueryString({
+                        ...baseQuery,
+                        page: String(page + 1),
+                      })}`}
+                      className={!hasNextPage ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
-          </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>

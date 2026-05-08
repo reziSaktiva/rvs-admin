@@ -23,6 +23,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { desc, eq } from "drizzle-orm";
 import { InventoryMovementForm } from "@/components/inventory/inventory-movement-form";
 import { db } from "@/lib/db";
@@ -32,6 +39,13 @@ import { ClipboardList, Package, ShoppingCart, Warehouse } from "lucide-react";
 import { AddRawMaterialFormCard } from "@/components/inventory/add-raw-material-form-card";
 import { ReferencePriceFormCard } from "@/components/inventory/reference-price-form-card";
 import { setRawMaterialReferencePriceAction } from "./actions";
+
+type BahanBakuPageProps = {
+  searchParams?: Promise<{
+    page?: string;
+    pageSize?: string;
+  }>;
+};
 
 const formatCurrency = (value: number) =>
   value.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
@@ -51,7 +65,14 @@ const itemTypeLabel = (type: string) => {
   return type;
 };
 
-export default async function BahanBakuPage() {
+export default async function BahanBakuPage({ searchParams }: BahanBakuPageProps) {
+  const params = (await searchParams) ?? {};
+  const parsedPage = Number(params.page ?? "1");
+  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const parsedPageSize = Number(params.pageSize ?? "25");
+  const pageSize = [10, 25, 50].includes(parsedPageSize) ? parsedPageSize : 25;
+  const offset = (page - 1) * pageSize;
+
   const [summary, movementOptions, availableUnits, purchaseRows] = await Promise.all([
     getRawMaterialAssetSummary(),
     getInventoryMovementOptions(),
@@ -109,6 +130,17 @@ export default async function BahanBakuPage() {
       latestPurchaseUnitCode: latestPurchase?.unitCode ?? null,
     };
   });
+  const pagedRowsRaw = summary.items.slice(offset, offset + pageSize + 1);
+  const hasNextPage = pagedRowsRaw.length > pageSize;
+  const hasPreviousPage = page > 1;
+  const pagedRows = hasNextPage ? pagedRowsRaw.slice(0, pageSize) : pagedRowsRaw;
+  const shouldShowPagination = hasPreviousPage || hasNextPage;
+  const buildQueryString = (nextPage: number) => {
+    const query = new URLSearchParams();
+    query.set("page", String(nextPage));
+    query.set("pageSize", String(pageSize));
+    return query.toString();
+  };
 
   return (
     <div className="space-y-8">
@@ -317,14 +349,14 @@ export default async function BahanBakuPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {summary.items.length === 0 ? (
+              {pagedRows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground">
                     Belum ada data stok. Tambah bahan baru lalu catat stok awal atau pembelian.
                   </TableCell>
                 </TableRow>
               ) : (
-                summary.items.map((item) => (
+                pagedRows.map((item) => (
                   <TableRow key={item.itemId}>
                     <TableCell className="font-medium">{item.itemName}</TableCell>
                     <TableCell>{itemTypeLabel(item.itemType)}</TableCell>
@@ -348,6 +380,29 @@ export default async function BahanBakuPage() {
               )}
             </TableBody>
           </Table>
+          {shouldShowPagination ? (
+            <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                Halaman {page} · {pagedRows.length} baris
+              </p>
+              <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href={`?${buildQueryString(Math.max(1, page - 1))}`}
+                      className={!hasPreviousPage ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationNext
+                      href={`?${buildQueryString(page + 1)}`}
+                      className={!hasNextPage ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>

@@ -10,15 +10,22 @@ type ResepProduksiPageProps = {
     recipeId?: string;
     status?: "draft" | "active" | "archived";
     error?: string;
+    page?: string;
+    pageSize?: string;
   }>;
 };
 
 export default async function ResepProduksiPage({ searchParams }: ResepProduksiPageProps) {
   const params = (await searchParams) ?? {};
+  const parsedPage = Number(params.page ?? "1");
+  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const parsedPageSize = Number(params.pageSize ?? "25");
+  const pageSize = [10, 25, 50].includes(parsedPageSize) ? parsedPageSize : 25;
   const statusParam = params.status as string | undefined;
   const selectedStatus = statusParam === "__all" ? undefined : isRecipeStatus(statusParam) ? statusParam : undefined;
-  const { recipeRows, availableItems, availableUnits, categories, products, allVariants } =
-    await getResepProduksiPageData(selectedStatus);
+  const { recipeRows, availableItems, availableUnits, categories, products, allVariants, hasNextPage } =
+    await getResepProduksiPageData(selectedStatus, { page, pageSize });
+  const hasPreviousPage = page > 1;
 
   const pageError = errorLabel(params.error);
 
@@ -50,6 +57,10 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
         categories={categories}
         products={products}
         allVariants={allVariants}
+        page={page}
+        pageSize={pageSize}
+        hasNextPage={hasNextPage}
+        hasPreviousPage={hasPreviousPage}
       />
     </div>
   );
