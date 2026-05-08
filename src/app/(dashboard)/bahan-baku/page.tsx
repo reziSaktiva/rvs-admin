@@ -23,14 +23,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { desc, eq } from "drizzle-orm";
 import { InventoryMovementForm } from "@/components/inventory/inventory-movement-form";
 import { db } from "@/lib/db";
+import { costItemInventoryMovements } from "@/lib/db/drizzle/schema";
 import { getInventoryMovementOptions, getRawMaterialAssetSummary } from "@/lib/inventory";
 import { ClipboardList, Package, ShoppingCart, Warehouse } from "lucide-react";
 import { AddRawMaterialFormCard } from "@/components/inventory/add-raw-material-form-card";
+import { ReferencePriceFormCard } from "@/components/inventory/reference-price-form-card";
+import { setRawMaterialReferencePriceAction } from "./actions";
 
 const formatCurrency = (value: number) =>
   value.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+
+const toNumber = (value: string | number | null | undefined, fallback = 0) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+};
 
 const itemTypeLabel = (type: string) => {
   if (type === "raw_material") return "Bahan utama";
@@ -39,7 +52,7 @@ const itemTypeLabel = (type: string) => {
 };
 
 export default async function BahanBakuPage() {
-  const [summary, movementOptions, availableUnits] = await Promise.all([
+  const [summary, movementOptions, availableUnits, purchaseRows] = await Promise.all([
     getRawMaterialAssetSummary(),
     getInventoryMovementOptions(),
     db.query.units.findMany({
@@ -51,9 +64,51 @@ export default async function BahanBakuPage() {
       },
       orderBy: (table, { asc }) => [asc(table.code)],
     }),
+    db.query.costItemInventoryMovements.findMany({
+      where: eq(costItemInventoryMovements.movementType, "purchase"),
+      columns: {
+        itemId: true,
+        unitCost: true,
+        occurredAt: true,
+      },
+      with: {
+        unit: {
+          columns: {
+            code: true,
+          },
+        },
+      },
+      orderBy: (table) => [desc(table.occurredAt), desc(table.createdAt)],
+      limit: 500,
+    }),
   ]);
 
   const itemsWithStock = summary.items.filter((i) => i.qtyOnHand > 0).length;
+  const itemsWithoutReferencePrice = summary.items.filter((item) => item.initialPrice <= 0).length;
+  const latestPurchaseByItemId = new Map<
+    string,
+    { unitCost: number; unitCode: string; occurredAt: string | null }
+  >();
+  for (const row of purchaseRows) {
+    if (latestPurchaseByItemId.has(row.itemId)) continue;
+    latestPurchaseByItemId.set(row.itemId, {
+      unitCost: toNumber(row.unitCost, 0),
+      unitCode: row.unit.code,
+      occurredAt: row.occurredAt ?? null,
+    });
+  }
+  const referencePriceOptions = movementOptions.items.map((item) => {
+    const summaryItem = summary.items.find((summaryRow) => summaryRow.itemId === item.id);
+    const latestPurchase = latestPurchaseByItemId.get(item.id);
+    return {
+      id: item.id,
+      name: item.name,
+      defaultUnit: item.defaultUnit,
+      referencePrice: summaryItem?.initialPrice ?? 0,
+      latestPurchasePrice: latestPurchase?.unitCost ?? null,
+      latestPurchaseUnitCode: latestPurchase?.unitCode ?? null,
+    };
+  });
 
   return (
     <div className="space-y-8">
@@ -166,7 +221,7 @@ export default async function BahanBakuPage() {
         </Card>
       </section>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle>Penambahan Bahan Baru</CardTitle>
@@ -224,6 +279,21 @@ export default async function BahanBakuPage() {
             </Sheet>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Atur harga acuan bahan</CardTitle>
+            <CardDescription>
+              Jika HPP memberi peringatan harga bahan kosong, isi dari sini agar hitung HPP lebih akurat.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ReferencePriceFormCard
+              items={referencePriceOptions}
+              itemsWithoutReferencePrice={itemsWithoutReferencePrice}
+              action={setRawMaterialReferencePriceAction}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -242,13 +312,14 @@ export default async function BahanBakuPage() {
                 <TableHead>Jumlah stok</TableHead>
                 <TableHead>Harga rata-rata per satuan</TableHead>
                 <TableHead>Harga acuan bahan</TableHead>
+                <TableHead>Harga pembelian terakhir</TableHead>
                 <TableHead className="text-right">Nilai persediaan</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {summary.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     Belum ada data stok. Tambah bahan baru lalu catat stok awal atau pembelian.
                   </TableCell>
                 </TableRow>
@@ -262,6 +333,13 @@ export default async function BahanBakuPage() {
                     </TableCell>
                     <TableCell className="tabular-nums">{formatCurrency(item.avgCostPerUnit)}</TableCell>
                     <TableCell className="tabular-nums">{formatCurrency(item.initialPrice)}</TableCell>
+                    <TableCell className="tabular-nums">
+                      {latestPurchaseByItemId.get(item.itemId)
+                        ? `${formatCurrency(latestPurchaseByItemId.get(item.itemId)!.unitCost)} / ${
+                            latestPurchaseByItemId.get(item.itemId)!.unitCode
+                          }`
+                        : "-"}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums font-medium">
                       {formatCurrency(item.assetValue)}
                     </TableCell>

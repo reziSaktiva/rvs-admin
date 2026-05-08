@@ -28,6 +28,12 @@ type HppApiResponse = {
 const formatCurrency = (value: number) =>
   value.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 
+const priceSourceLabel = (sourceType: CalculateHppResult["materials"][number]["price"]["sourceType"]) => {
+  if (sourceType === "cost_item_price") return "Harga acuan";
+  if (sourceType === "inventory_avg_cost") return "Rata-rata stok";
+  return "Fallback Rp0";
+};
+
 export function HppCalculator({ recipes, initialRecipeId }: HppCalculatorProps) {
   const [recipeId, setRecipeId] = useState(initialRecipeId ?? recipes[0]?.recipeId ?? "");
   const [marginPercent, setMarginPercent] = useState("30");
@@ -154,6 +160,19 @@ export function HppCalculator({ recipes, initialRecipeId }: HppCalculatorProps) 
 
       {result && !isLoading && !error && (
         <>
+          {result.warnings.length > 0 && (
+            <Card className="border-amber-300 bg-amber-50/70 dark:border-amber-700/70 dark:bg-amber-950/20">
+              <CardContent className="py-4 text-sm text-amber-800 dark:text-amber-300">
+                <p className="font-medium">Perhatian: sebagian bahan belum punya harga acuan.</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {result.warnings.map((warning) => (
+                    <li key={`${warning.itemId}-${warning.code}`}>{warning.message}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <Card>
               <CardHeader>
@@ -207,6 +226,7 @@ export function HppCalculator({ recipes, initialRecipeId }: HppCalculatorProps) 
                   <TableRow>
                     <TableHead>Material</TableHead>
                     <TableHead>Qty efektif</TableHead>
+                    <TableHead>Sumber harga</TableHead>
                     <TableHead>Harga/unit</TableHead>
                     <TableHead>Biaya</TableHead>
                   </TableRow>
@@ -218,6 +238,7 @@ export function HppCalculator({ recipes, initialRecipeId }: HppCalculatorProps) 
                       <TableCell>
                         {item.effectiveQty.toLocaleString("id-ID")} {item.unit.code}
                       </TableCell>
+                      <TableCell>{priceSourceLabel(item.price.sourceType)}</TableCell>
                       <TableCell>{formatCurrency(item.price.convertedPricePerUnit)}</TableCell>
                       <TableCell>{formatCurrency(item.lineCost)}</TableCell>
                     </TableRow>
