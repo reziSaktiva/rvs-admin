@@ -76,6 +76,42 @@ type UnitSummary = {
   code: string;
 };
 
+type RecipeMaterialRecord = {
+  id: string;
+  itemId: string;
+  qty: string | number | null;
+  wastePercent: string | number | null;
+  item: {
+    id: string;
+    name: string;
+    defaultUnitId: string;
+  };
+  unit: {
+    id: string;
+    code: string;
+  };
+};
+
+type ProductionRecipeRecord = {
+  id: string;
+  name: string;
+  status: "draft" | "active" | "archived";
+  outputQty: string | number | null;
+  lossPercent: string | number | null;
+  outputUnit: {
+    id: string;
+    code: string;
+  };
+  productVariant: {
+    id: string;
+    sku: string | null;
+    product: {
+      name: string;
+    };
+  };
+  materials: RecipeMaterialRecord[];
+};
+
 const toNumber = (value: string | number | null | undefined, fallback = 0): number => {
   if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
   if (typeof value === "string") {
@@ -134,7 +170,7 @@ const findConversionFactor = (
 };
 
 const computePreviewFromRecipeData = (
-  recipe: any,
+  recipe: ProductionRecipeRecord | null,
   conversions: Array<{ fromUnitId: string; toUnitId: string; multiplier: string | number }>,
   balanceByItemId: Map<string, { qtyOnHand: number; unit: UnitSummary }>,
   batchCountInput: number
@@ -155,7 +191,7 @@ const computePreviewFromRecipeData = (
   const producedQtyEffective = producedQtyRaw * (1 - lossPercent / 100);
   const producedQtyForStock = Math.max(0, Math.round(producedQtyEffective));
 
-  const materials: MaterialRequirement[] = recipe.materials.map((material: any) => {
+  const materials: MaterialRequirement[] = recipe.materials.map((material) => {
     const qty = toNumber(material.qty, 0);
     const wastePercent = toNumber(material.wastePercent, 0);
     const requiredQty = qty * (1 + wastePercent / 100) * batchCount;

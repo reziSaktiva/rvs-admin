@@ -38,15 +38,17 @@ export function HppCalculator({ recipes, initialRecipeId }: HppCalculatorProps) 
 
   useEffect(() => {
     if (!recipeId) {
-      setResult(null);
       return;
     }
 
     let isCancelled = false;
-    setIsLoading(true);
-    setError(null);
 
     const run = async () => {
+      if (!isCancelled) {
+        setIsLoading(true);
+        setError(null);
+      }
+
       try {
         const response = await fetch(`/api/hpp/${recipeId}`, { cache: "no-store" });
         const payload = (await response.json()) as HppApiResponse;

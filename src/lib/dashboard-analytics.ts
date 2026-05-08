@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { calculateHpp } from "./hpp";
 import { costItems } from "./db/drizzle/schema";
