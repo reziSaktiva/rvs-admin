@@ -74,6 +74,46 @@ export function ManageRecipeDrawer({
           <DrawerDescription>
             Ubah nama resep, hasil batch, status, bahan, biaya tambahan, dan cek ringkasan HPP.
           </DrawerDescription>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Produk</p>
+              <p className="font-medium">{recipe.productVariant.product.name}</p>
+              <p className="text-xs text-muted-foreground">SKU: {recipe.productVariant.sku ?? "-"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Hasil & susut</p>
+              <p className="font-medium">
+                {Number(recipe.outputQty).toLocaleString("id-ID")} {recipe.outputUnit.code}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Susut: {Number(recipe.lossPercent ?? 0).toLocaleString("id-ID")}%
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Status</p>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <Badge variant={recipe.status === "active" ? "default" : "secondary"}>
+                  {statusLabel(recipe.status)}
+                </Badge>
+                <form action={updateRecipeStatusAction} className="flex items-center gap-2">
+                  <input type="hidden" name="recipeId" value={recipe.id} />
+                  <Select name="status" defaultValue={recipe.status}>
+                    <SelectTrigger className="h-8 w-[140px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draf</SelectItem>
+                      <SelectItem value="active">Aktif</SelectItem>
+                      <SelectItem value="archived">Diarsipkan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button type="submit" size="sm" variant="outline">
+                    Simpan status
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </div>
         </DrawerHeader>
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           <Card className="mb-4">
@@ -125,7 +165,6 @@ export function ManageRecipeDrawer({
                       id={`recipe-loss-${recipe.id}`}
                       name="lossPercent"
                       type="number"
-                      min="0"
                       max="100"
                       step="0.01"
                       defaultValue={String(recipe.lossPercent ?? 0)}
@@ -151,47 +190,6 @@ export function ManageRecipeDrawer({
               </form>
             </CardContent>
           </Card>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">Produk</p>
-              <p className="font-medium">{recipe.productVariant.product.name}</p>
-              <p className="text-xs text-muted-foreground">SKU: {recipe.productVariant.sku ?? "-"}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">Hasil & susut</p>
-              <p className="font-medium">
-                {Number(recipe.outputQty).toLocaleString("id-ID")} {recipe.outputUnit.code}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Susut: {Number(recipe.lossPercent ?? 0).toLocaleString("id-ID")}%
-              </p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">Status</p>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <Badge variant={recipe.status === "active" ? "default" : "secondary"}>
-                  {statusLabel(recipe.status)}
-                </Badge>
-                <form action={updateRecipeStatusAction} className="flex items-center gap-2">
-                  <input type="hidden" name="recipeId" value={recipe.id} />
-                  <Select name="status" defaultValue={recipe.status}>
-                    <SelectTrigger className="h-8 w-[140px] text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draf</SelectItem>
-                      <SelectItem value="active">Aktif</SelectItem>
-                      <SelectItem value="archived">Diarsipkan</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button type="submit" size="sm" variant="outline">
-                    Simpan status
-                  </Button>
-                </form>
-              </div>
-            </div>
-          </div>
-
           <div className="flex flex-col gap-3">
             <Card>
               <CardHeader>

@@ -11,7 +11,7 @@ type DefaultUnit = {
 type DefaultConversion = {
   fromCode: string;
   toCode: string;
-  multiplier: string;
+  multiplier: number;
 };
 
 const defaultUnits: DefaultUnit[] = [
@@ -29,13 +29,13 @@ const defaultUnits: DefaultUnit[] = [
 ];
 
 const defaultConversions: DefaultConversion[] = [
-  { fromCode: "kg", toCode: "g", multiplier: "1000" },
-  { fromCode: "kg", toCode: "ons", multiplier: "10" },
-  { fromCode: "ons", toCode: "g", multiplier: "100" },
-  { fromCode: "l", toCode: "ml", multiplier: "1000" },
-  { fromCode: "m", toCode: "cm", multiplier: "100" },
-  { fromCode: "dozen", toCode: "pcs", multiplier: "12" },
-  { fromCode: "pair", toCode: "pcs", multiplier: "2" },
+  { fromCode: "kg", toCode: "g", multiplier: 1000 },
+  { fromCode: "kg", toCode: "ons", multiplier: 10 },
+  { fromCode: "ons", toCode: "g", multiplier: 100 },
+  { fromCode: "l", toCode: "ml", multiplier: 1000 },
+  { fromCode: "m", toCode: "cm", multiplier: 100 },
+  { fromCode: "dozen", toCode: "pcs", multiplier: 12 },
+  { fromCode: "pair", toCode: "pcs", multiplier: 2 },
 ];
 
 const seedDefaultUnits = async () => {
