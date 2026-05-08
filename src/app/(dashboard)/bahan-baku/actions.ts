@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { costItemPrices, costItems } from "@/lib/db/drizzle/schema";
@@ -98,5 +98,46 @@ export async function addRawMaterialAction(formData: FormData) {
   revalidatePath("/bahan-baku");
   revalidatePath("/pembelian");
   revalidatePath("/riwayat-stok");
+  revalidatePath("/");
+}
+
+export async function setRawMaterialReferencePriceAction(formData: FormData) {
+  const selectedItem = String(formData.get("itemSelection") ?? "").trim();
+  const price = toNumber(formData.get("pricePerUnit"));
+
+  const [itemId, unitId] = selectedItem.split("::");
+  if (!itemId || !unitId) {
+    throw new Error("Bahan dan satuan wajib dipilih");
+  }
+
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new Error("Harga acuan harus lebih besar dari nol");
+  }
+
+  const item = await db.query.costItems.findFirst({
+    where: and(
+      eq(costItems.id, itemId),
+      eq(costItems.isActive, true),
+      inArray(costItems.itemType, ["raw_material", "packaging"])
+    ),
+    columns: {
+      id: true,
+    },
+  });
+
+  if (!item) {
+    throw new Error("Bahan tidak ditemukan");
+  }
+
+  await db.insert(costItemPrices).values({
+    itemId,
+    unitId,
+    pricePerUnit: String(price),
+    sourceNote: "manual_update",
+  });
+
+  revalidatePath("/bahan-baku");
+  revalidatePath("/hpp");
+  revalidatePath("/resep-produksi");
   revalidatePath("/");
 }

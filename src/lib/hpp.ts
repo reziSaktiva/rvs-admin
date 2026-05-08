@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { recipes, unitConversions } from "./db/drizzle/schema";
 
@@ -18,7 +18,8 @@ type MaterialCostBreakdown = {
   effectiveQty: number;
   unit: UnitSummary;
   price: {
-    itemPriceId: string;
+    itemPriceId: string | null;
+    sourceType: "cost_item_price" | "inventory_avg_cost" | "fallback_zero";
     sourceUnit: UnitSummary;
     sourcePricePerUnit: number;
     convertedPricePerUnit: number;
@@ -35,6 +36,13 @@ type AdditionalCostBreakdown = {
   basis: "per_batch" | "per_unit";
   amount: number;
   appliedAmount: number;
+};
+
+type HppWarning = {
+  itemId: string;
+  itemName: string;
+  code: "missing_price_reference";
+  message: string;
 };
 
 export type CalculateHppResult = {
@@ -57,6 +65,7 @@ export type CalculateHppResult = {
   };
   materials: MaterialCostBreakdown[];
   additionalCosts: AdditionalCostBreakdown[];
+  warnings: HppWarning[];
 };
 
 export type HppRecipeOption = {
@@ -209,6 +218,28 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
     throw new Error(`Recipe with id ${recipeId} was not found`);
   }
 
+  const materialItemIds = Array.from(new Set(recipe.materials.map((material) => material.item.id)));
+  const balances =
+    materialItemIds.length === 0
+      ? []
+      : await db.query.costItemInventoryBalances.findMany({
+          where: (table) => inArray(table.itemId, materialItemIds),
+          columns: {
+            itemId: true,
+            avgCostPerUnit: true,
+          },
+          with: {
+            unit: {
+              columns: {
+                id: true,
+                code: true,
+                name: true,
+                dimension: true,
+              },
+            },
+          },
+        });
+
   const outputQty = toNumber(recipe.outputQty, 0);
   const lossPercent = toNumber(recipe.lossPercent, 0);
   const effectiveOutputQty = outputQty * (1 - lossPercent / 100);
@@ -225,6 +256,18 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
     }))
   );
 
+  const balanceByItemId = new Map(
+    balances.map((balance) => [
+      balance.itemId,
+      {
+        avgCostPerUnit: toNumber(balance.avgCostPerUnit, 0),
+        unit: toUnitSummary(balance.unit),
+      },
+    ])
+  );
+
+  const warnings: HppWarning[] = [];
+
   const materials: MaterialCostBreakdown[] = recipe.materials.map((material) => {
     const qty = toNumber(material.qty, 0);
     const wastePercent = toNumber(material.wastePercent, 0);
@@ -236,21 +279,85 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
       return factor !== null && factor > 0;
     });
 
-    if (!selectedPrice) {
-      throw new Error(
-        `No price with compatible unit conversion for item ${material.item.name}`
-      );
+    const balanceFallback = balanceByItemId.get(material.item.id);
+
+    if (selectedPrice) {
+      const factor = findConversionFactor(conversionGraph, selectedPrice.unitId, material.unitId);
+      if (!factor || factor <= 0) {
+        throw new Error(`Unit conversion failed for item ${material.item.name}`);
+      }
+
+      // pricePerUnit is based on selectedPrice.unitId.
+      // If 1 sourceUnit = factor targetUnit, then price per targetUnit = pricePerSource / factor.
+      const sourcePricePerUnit = toNumber(selectedPrice.pricePerUnit, 0);
+      const convertedPricePerUnit = sourcePricePerUnit / factor;
+      const lineCost = effectiveQty * convertedPricePerUnit;
+
+      return {
+        recipeMaterialId: material.id,
+        itemId: material.item.id,
+        itemName: material.item.name,
+        qty,
+        wastePercent,
+        effectiveQty,
+        unit: toUnitSummary(material.unit),
+        price: {
+          itemPriceId: selectedPrice.id,
+          sourceType: "cost_item_price",
+          sourceUnit: toUnitSummary(selectedPrice.unit),
+          sourcePricePerUnit,
+          convertedPricePerUnit,
+          effectiveFrom: selectedPrice.effectiveFrom,
+          sourceNote: selectedPrice.sourceNote,
+        },
+        lineCost,
+      };
     }
 
-    const factor = findConversionFactor(conversionGraph, selectedPrice.unitId, material.unitId);
-    if (!factor || factor <= 0) {
-      throw new Error(`Unit conversion failed for item ${material.item.name}`);
+    if (balanceFallback && balanceFallback.avgCostPerUnit > 0) {
+      const factor = findConversionFactor(conversionGraph, balanceFallback.unit.id, material.unitId);
+      if (factor && factor > 0) {
+        const sourcePricePerUnit = balanceFallback.avgCostPerUnit;
+        const convertedPricePerUnit = sourcePricePerUnit / factor;
+        const lineCost = effectiveQty * convertedPricePerUnit;
+
+        warnings.push({
+          itemId: material.item.id,
+          itemName: material.item.name,
+          code: "missing_price_reference",
+          message: `${material.item.name}: harga acuan belum ada, memakai rata-rata biaya stok.`,
+        });
+
+        return {
+          recipeMaterialId: material.id,
+          itemId: material.item.id,
+          itemName: material.item.name,
+          qty,
+          wastePercent,
+          effectiveQty,
+          unit: toUnitSummary(material.unit),
+          price: {
+            itemPriceId: null,
+            sourceType: "inventory_avg_cost",
+            sourceUnit: balanceFallback.unit,
+            sourcePricePerUnit,
+            convertedPricePerUnit,
+            effectiveFrom: null,
+            sourceNote: "fallback:inventory_avg_cost",
+          },
+          lineCost,
+        };
+      }
     }
 
-    // pricePerUnit is based on selectedPrice.unitId.
-    // If 1 sourceUnit = factor targetUnit, then price per targetUnit = pricePerSource / factor.
-    const sourcePricePerUnit = toNumber(selectedPrice.pricePerUnit, 0);
-    const convertedPricePerUnit = sourcePricePerUnit / factor;
+    warnings.push({
+      itemId: material.item.id,
+      itemName: material.item.name,
+      code: "missing_price_reference",
+      message: `${material.item.name}: harga acuan belum ada, sementara dihitung Rp0. Lengkapi harga bahan agar HPP akurat.`,
+    });
+
+    const convertedPricePerUnit = 0;
     const lineCost = effectiveQty * convertedPricePerUnit;
 
     return {
@@ -262,12 +369,13 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
       effectiveQty,
       unit: toUnitSummary(material.unit),
       price: {
-        itemPriceId: selectedPrice.id,
-        sourceUnit: toUnitSummary(selectedPrice.unit),
-        sourcePricePerUnit,
+        itemPriceId: null,
+        sourceType: "fallback_zero",
+        sourceUnit: toUnitSummary(material.unit),
+        sourcePricePerUnit: 0,
         convertedPricePerUnit,
-        effectiveFrom: selectedPrice.effectiveFrom,
-        sourceNote: selectedPrice.sourceNote,
+        effectiveFrom: null,
+        sourceNote: "fallback:zero",
       },
       lineCost,
     };
@@ -312,6 +420,7 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
     },
     materials,
     additionalCosts,
+    warnings,
   };
 };
 
