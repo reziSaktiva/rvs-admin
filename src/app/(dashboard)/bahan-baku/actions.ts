@@ -2,6 +2,7 @@
 
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { costItemPrices, costItems } from "@/lib/db/drizzle/schema";
 import { recordInventoryMovement } from "@/lib/inventory";
@@ -140,4 +141,5 @@ export async function setRawMaterialReferencePriceAction(formData: FormData) {
   revalidatePath("/hpp");
   revalidatePath("/resep-produksi");
   revalidatePath("/");
+  redirect(`/bahan-baku?referenceItemId=${encodeURIComponent(itemId)}`);
 }
