@@ -59,6 +59,29 @@ export async function getResepProduksiPageData(
                 id: true,
                 name: true,
               },
+              with: {
+                prices: {
+                  columns: {
+                    id: true,
+                    unitId: true,
+                    pricePerUnit: true,
+                    effectiveFrom: true,
+                    createdAt: true,
+                  },
+                  with: {
+                    unit: {
+                      columns: {
+                        code: true,
+                      },
+                    },
+                  },
+                  orderBy: (table, { desc: descOrder }) => [
+                    descOrder(table.effectiveFrom),
+                    descOrder(table.createdAt),
+                  ],
+                  limit: 5,
+                },
+              },
             },
             unit: {
               columns: {
