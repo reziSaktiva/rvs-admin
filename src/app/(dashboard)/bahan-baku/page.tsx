@@ -44,6 +44,7 @@ type BahanBakuPageProps = {
   searchParams?: Promise<{
     page?: string;
     pageSize?: string;
+    referenceItemId?: string;
   }>;
 };
 
@@ -322,6 +323,7 @@ export default async function BahanBakuPage({ searchParams }: BahanBakuPageProps
             <ReferencePriceFormCard
               items={referencePriceOptions}
               itemsWithoutReferencePrice={itemsWithoutReferencePrice}
+              initialSelectedItemId={params.referenceItemId}
               action={setRawMaterialReferencePriceAction}
             />
           </CardContent>

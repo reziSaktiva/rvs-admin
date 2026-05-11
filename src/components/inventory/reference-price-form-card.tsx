@@ -1,8 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import {
+  DialogClose,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ReferencePriceOption = {
   id: string;
@@ -19,6 +30,7 @@ type ReferencePriceOption = {
 type ReferencePriceFormCardProps = {
   items: ReferencePriceOption[];
   itemsWithoutReferencePrice: number;
+  initialSelectedItemId?: string;
   action: (formData: FormData) => Promise<void>;
 };
 
@@ -34,40 +46,62 @@ const toInputValue = (value: number | null) => {
   return String(Math.round(value));
 };
 
+const getInitialItem = (
+  items: ReferencePriceOption[],
+  initialSelectedItemId?: string
+): ReferencePriceOption | null => {
+  if (!items.length) return null;
+  if (initialSelectedItemId) {
+    const matched = items.find((item) => item.id === initialSelectedItemId);
+    if (matched) return matched;
+  }
+  return items[0] ?? null;
+};
+
 export function ReferencePriceFormCard({
   items,
   itemsWithoutReferencePrice,
+  initialSelectedItemId,
   action,
 }: ReferencePriceFormCardProps) {
-  const [selectedItemId, setSelectedItemId] = useState(items[0]?.id ?? "");
+  const formRef = useRef<HTMLFormElement>(null);
+  const initialItem = getInitialItem(items, initialSelectedItemId);
+  const initialSelectionValue = initialItem
+    ? `${initialItem.id}::${initialItem.defaultUnit.id}`
+    : "";
+  const [selectedSelection, setSelectedSelection] = useState(initialSelectionValue);
+  const selectedItemId = selectedSelection.split("::")[0] ?? "";
   const selectedItem = useMemo(
     () => items.find((item) => item.id === selectedItemId) ?? null,
     [items, selectedItemId]
   );
   const [priceInput, setPriceInput] = useState(() => {
-    if (!items[0]) return "";
+    if (!initialItem) return "";
     return toInputValue(
-      items[0].referencePrice > 0 ? items[0].referencePrice : items[0].latestPurchasePrice
+      initialItem.referencePrice > 0 ? initialItem.referencePrice : initialItem.latestPurchasePrice
     );
   });
+  const parsedPriceInput = Number(priceInput);
+  const normalizedPriceInput =
+    Number.isFinite(parsedPriceInput) && parsedPriceInput > 0
+      ? toInputValue(parsedPriceInput)
+      : "";
+  const currentReferenceInput = toInputValue(selectedItem?.referencePrice ?? null);
+  const isSameAsCurrentReference =
+    currentReferenceInput !== "" && normalizedPriceInput === currentReferenceInput;
+  const isSubmitDisabled = items.length === 0 || isSameAsCurrentReference;
 
   return (
-    <form action={action} className="space-y-3">
+    <form ref={formRef} action={action} className="space-y-3">
       <div className="space-y-1.5">
         <label htmlFor="reference-price-item" className="text-sm font-medium">
           Pilih bahan
         </label>
-        <select
-          id="reference-price-item"
-          name="itemSelection"
-          required
-          disabled={items.length === 0}
-          value={
-            selectedItem ? `${selectedItem.id}::${selectedItem.defaultUnit.id}` : ""
-          }
-          onChange={(event) => {
-            const [nextItemId] = event.target.value.split("::");
-            setSelectedItemId(nextItemId ?? "");
+        <Select
+          value={selectedSelection}
+          onValueChange={(nextSelection) => {
+            setSelectedSelection(nextSelection);
+            const [nextItemId] = nextSelection.split("::");
             const nextItem = items.find((item) => item.id === nextItemId) ?? null;
             const nextDefault =
               nextItem && nextItem.referencePrice > 0
@@ -75,17 +109,20 @@ export function ReferencePriceFormCard({
                 : nextItem?.latestPurchasePrice ?? null;
             setPriceInput(toInputValue(nextDefault));
           }}
-          className="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          disabled={items.length === 0}
         >
-          {items.map((item) => (
-            <option
-              key={item.id}
-              value={`${item.id}::${item.defaultUnit.id}`}
-            >
-              {item.name} ({item.defaultUnit.code})
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="reference-price-item" className="w-full">
+            <SelectValue placeholder="Pilih bahan" />
+          </SelectTrigger>
+          <SelectContent>
+            {items.map((item) => (
+              <SelectItem key={item.id} value={`${item.id}::${item.defaultUnit.id}`}>
+                {item.name} ({item.defaultUnit.code})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <input type="hidden" name="itemSelection" value={selectedSelection} />
       </div>
       <div className="space-y-1.5">
         <label htmlFor="reference-price-value" className="text-sm font-medium">
@@ -121,15 +158,54 @@ export function ReferencePriceFormCard({
       </div>
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <p>{itemsWithoutReferencePrice} bahan belum punya harga acuan.</p>
-        <Button
-          type="submit"
-          size="sm"
-          variant="outline"
-          disabled={items.length === 0}
-        >
-          Simpan harga
-        </Button>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button type="button" size="sm" variant="default" disabled={isSubmitDisabled}>
+              Simpan harga
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Konfirmasi simpan harga acuan</DialogTitle>
+              <DialogDescription>
+                Anda akan menyimpan harga acuan{" "}
+                <span className="font-medium text-foreground">
+                  {normalizedPriceInput
+                    ? formatCurrency(Number(normalizedPriceInput))
+                    : "harga belum valid"}
+                </span>{" "}
+                untuk bahan{" "}
+                <span className="font-medium text-foreground">
+                  {selectedItem ? `${selectedItem.name} (${selectedItem.defaultUnit.code})` : "-"}
+                </span>
+                .
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Batal
+                </Button>
+              </DialogClose>
+              <DialogClose asChild>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    formRef.current?.requestSubmit();
+                  }}
+                >
+                  Ya, simpan
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
+      {isSameAsCurrentReference ? (
+        <p className="text-xs text-amber-700 dark:text-amber-500">
+          Harga sama dengan acuan terakhir. Ubah nilai untuk menyimpan pembaruan.
+        </p>
+      ) : null}
       <p className="text-xs text-muted-foreground">
         Gunakan harga pembelian terakhir sebagai patokan awal bila belum ada standar harga internal.
       </p>
