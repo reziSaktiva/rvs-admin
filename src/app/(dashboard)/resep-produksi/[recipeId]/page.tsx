@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getResepProduksiRecipeDetailData } from "../data";
 import { RecipeDetailContent } from "../components/recipe-detail-content";
-import { RecipeSuccessToast } from "../components/recipe-success-toast";
 import { errorLabel, successLabel } from "../components/view-model";
 
 type RecipeDetailPageProps = {
@@ -35,12 +34,6 @@ export default async function RecipeDetailPage({ params, searchParams }: RecipeD
 
   return (
     <div className="space-y-4">
-      {successMessage ? <RecipeSuccessToast message={successMessage} /> : null}
-      {pageError ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {pageError}
-        </div>
-      ) : null}
       <RecipeDetailContent
         recipe={detail.recipe}
         availableItems={detail.availableItems}
@@ -48,6 +41,8 @@ export default async function RecipeDetailPage({ params, searchParams }: RecipeD
         detailPath={detailPath}
         canManage={detail.access.canManage}
         readOnlyMessage={readOnlyMessage}
+        successMessage={successMessage}
+        errorMessage={pageError}
       />
     </div>
   );

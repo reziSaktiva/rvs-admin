@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
 import { PencilIcon, TrashIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
@@ -52,6 +56,8 @@ type RecipeDetailContentProps = {
   detailPath: string;
   canManage: boolean;
   readOnlyMessage: string | null;
+  successMessage?: string | null;
+  errorMessage?: string | null;
 };
 
 export function RecipeDetailContent({
@@ -61,7 +67,25 @@ export function RecipeDetailContent({
   detailPath,
   canManage,
   readOnlyMessage,
+  successMessage,
+  errorMessage,
 }: RecipeDetailContentProps) {
+  useEffect(() => {
+    if (successMessage) {
+      toast.success(successMessage);
+    }
+    if (errorMessage) {
+      toast.error(errorMessage);
+    }
+
+    if (!successMessage && !errorMessage) return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("success");
+    url.searchParams.delete("error");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [successMessage, errorMessage]);
+
   const outputQty = Number(recipe.outputQty);
   const safeOutputQty = Number.isFinite(outputQty) && outputQty > 0 ? outputQty : 0;
   const perBatchAdditionalCost = recipe.costs.reduce((total, item) => {
