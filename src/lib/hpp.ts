@@ -41,7 +41,7 @@ type AdditionalCostBreakdown = {
 type HppWarning = {
   itemId: string;
   itemName: string;
-  code: "missing_price_reference";
+  code: "missing_price_reference" | "price_unit_conversion_missing";
   message: string;
 };
 
@@ -223,22 +223,22 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
     materialItemIds.length === 0
       ? []
       : await db.query.costItemInventoryBalances.findMany({
-          where: (table) => inArray(table.itemId, materialItemIds),
-          columns: {
-            itemId: true,
-            avgCostPerUnit: true,
-          },
-          with: {
-            unit: {
-              columns: {
-                id: true,
-                code: true,
-                name: true,
-                dimension: true,
-              },
+        where: (table) => inArray(table.itemId, materialItemIds),
+        columns: {
+          itemId: true,
+          avgCostPerUnit: true,
+        },
+        with: {
+          unit: {
+            columns: {
+              id: true,
+              code: true,
+              name: true,
+              dimension: true,
             },
           },
-        });
+        },
+      });
 
   const outputQty = toNumber(recipe.outputQty, 0);
   const lossPercent = toNumber(recipe.lossPercent, 0);
@@ -274,10 +274,12 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
     const effectiveQty = qty * (1 + wastePercent / 100);
 
     const priceCandidates = material.item.prices ?? [];
+    const newestPrice = priceCandidates[0];
     const selectedPrice = priceCandidates.find((price) => {
       const factor = findConversionFactor(conversionGraph, price.unitId, material.unitId);
       return factor !== null && factor > 0;
     });
+    const hasUnconvertibleReferencePrice = priceCandidates.length > 0 && !selectedPrice;
 
     const balanceFallback = balanceByItemId.get(material.item.id);
 
@@ -324,8 +326,12 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
         warnings.push({
           itemId: material.item.id,
           itemName: material.item.name,
-          code: "missing_price_reference",
-          message: `${material.item.name}: harga acuan belum ada, memakai rata-rata biaya stok.`,
+          code: hasUnconvertibleReferencePrice
+            ? "price_unit_conversion_missing"
+            : "missing_price_reference",
+          message: hasUnconvertibleReferencePrice
+            ? `${material.item.name}: harga acuan ada, tapi satuan ${newestPrice?.unit.code ?? "?"} tidak bisa dikonversi ke ${material.unit.code}. Sementara memakai rata-rata biaya stok.`
+            : `${material.item.name}: harga acuan belum ada, memakai rata-rata biaya stok.`,
         });
 
         return {
@@ -353,8 +359,10 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
     warnings.push({
       itemId: material.item.id,
       itemName: material.item.name,
-      code: "missing_price_reference",
-      message: `${material.item.name}: harga acuan belum ada, sementara dihitung Rp0. Lengkapi harga bahan agar HPP akurat.`,
+      code: hasUnconvertibleReferencePrice ? "price_unit_conversion_missing" : "missing_price_reference",
+      message: hasUnconvertibleReferencePrice
+        ? `${material.item.name}: harga acuan ada, tapi satuan ${newestPrice?.unit.code ?? "?"} tidak bisa dikonversi ke ${material.unit.code}. Sementara dihitung Rp0.`
+        : `${material.item.name}: harga acuan belum ada, sementara dihitung Rp0. Lengkapi harga bahan agar HPP akurat.`,
     });
 
     const convertedPricePerUnit = 0;

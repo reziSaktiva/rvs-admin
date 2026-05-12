@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Pagination,
@@ -10,13 +12,11 @@ import {
 } from "@/components/ui/pagination";
 import type { RecipeRow, ResepProduksiPageData } from "../data";
 import { statusLabel, type RecipeStatus } from "./view-model";
-import { ManageRecipeDrawer } from "./drawers/manage-recipe-drawer";
 import { CreateRecipeDrawer } from "./drawers/create-recipe-drawer";
 
 type RecipeListCardProps = {
   recipes: RecipeRow[];
   selectedStatus?: RecipeStatus;
-  availableItems: ResepProduksiPageData["availableItems"];
   availableUnits: ResepProduksiPageData["availableUnits"];
   categories: ResepProduksiPageData["categories"];
   products: ResepProduksiPageData["products"];
@@ -30,7 +30,6 @@ type RecipeListCardProps = {
 export function RecipeListCard({
   recipes,
   selectedStatus,
-  availableItems,
   availableUnits,
   categories,
   products,
@@ -107,12 +106,9 @@ export function RecipeListCard({
                   <TableCell>{recipe.materials.length}</TableCell>
                   <TableCell>{recipe.costs.length}</TableCell>
                   <TableCell>
-                    <ManageRecipeDrawer
-                      recipe={recipe}
-                      selectedStatus={selectedStatus}
-                      availableItems={availableItems}
-                      availableUnits={availableUnits}
-                    />
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/resep-produksi/${recipe.id}`}>Kelola resep</Link>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
