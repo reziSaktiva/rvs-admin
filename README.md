@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Produksin — Platform Manajemen Operasional UMKM
 
-## Getting Started
+Platform SaaS multi-tenant untuk membantu pelaku UMKM mengelola operasional bisnis secara menyeluruh: dari manajemen bahan baku, resep produksi, kalkulasi HPP, hingga laporan profit.
 
-First, run the development server:
+---
+
+## Tentang Produk
+
+**Produksin** adalah admin dashboard berbasis web yang memungkinkan setiap bisnis (company) memiliki workspace tersendiri. Satu akun owner bisa mengundang anggota timnya dengan peran (role) masing-masing.
+
+Target pengguna utama adalah UMKM di bidang **produksi makanan, minuman, atau produk packaged** yang membutuhkan kontrol penuh atas biaya produksi dan margin keuntungan.
+
+---
+
+## Tech Stack
+
+| Layer | Teknologi |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| UI | React 19, Tailwind CSS 4, Radix UI, shadcn/ui |
+| Auth | Supabase Auth (`@supabase/ssr`) |
+| Database | PostgreSQL via Drizzle ORM |
+| Runtime | Bun |
+
+---
+
+## Fitur Utama (Fase 1 — Admin Dashboard)
+
+- **Multi-tenant** — setiap bisnis punya workspace terisolasi
+- **Manajemen Produk** — katalog produk dan varian per company
+- **Manajemen Bahan Baku** — stok, pembelian, riwayat pergerakan
+- **Resep Produksi (BOM)** — definisi formula per produk/varian
+- **Kalkulasi HPP** — harga pokok produksi berbasis data biaya aktual
+- **Post Produksi** — catat batch produksi, stok bahan berkurang otomatis
+- **Penjualan** — catat transaksi penjualan harian *(in development)*
+- **Laporan Profit** — analisis margin dan laba rugi *(in development)*
+- **Manajemen Tim** — undang anggota dengan role berbeda
+
+---
+
+## Memulai Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+# Install dependencies
+bun install
+
+# Jalankan development server
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000) di browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Seed Database
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Seed semua data demo
+bun run seed:all
 
-## Learn More
+# Reset data demo
+bun run seed:reset
 
-To learn more about Next.js, take a look at the following resources:
+# Reset lalu isi ulang
+bun run seed:refresh
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Dokumentasi
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| File | Isi |
+|---|---|
+| [`docs/VISI_PRODUK.md`](./docs/VISI_PRODUK.md) | Visi, roadmap, dan rencana fase pengembangan |
+| [`docs/APLIKASI_ALUR_KERJA.md`](./docs/APLIKASI_ALUR_KERJA.md) | Alur kerja end-to-end penggunaan aplikasi |
+| [`docs/HPP_SCHEMA_GUIDE.md`](./docs/HPP_SCHEMA_GUIDE.md) | Penjelasan lengkap schema database |
+| [`docs/HPP_USE_CASE_QNA.md`](./docs/HPP_USE_CASE_QNA.md) | Q&A use case HPP untuk berbagai model bisnis |
+| [`docs/SEED_RESET_STRATEGY.md`](./docs/SEED_RESET_STRATEGY.md) | Strategi seed dan reset data demo |

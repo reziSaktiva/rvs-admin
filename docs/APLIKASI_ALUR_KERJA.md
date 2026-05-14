@@ -1,130 +1,221 @@
-# Alur Kerja Aplikasi HPP UMKM
+# Alur Kerja Aplikasi Admin Dashboard
 
-Dokumen ini menjelaskan alur kerja aplikasi dari awal input data hingga analitik bisnis.
+Dokumen ini menjelaskan alur kerja lengkap aplikasi dari onboarding company hingga pemantauan operasional harian.
 
-## Tujuan Utama Aplikasi
+---
 
-1. Menghitung HPP (Cost of Goods Sold) secara fleksibel untuk berbagai model usaha.
-2. Mengetahui nilai aset persediaan bahan baku secara aktual.
-3. Membantu pemilik usaha menentukan harga jual dan memantau margin.
+## Konteks: Multi-Tenant
 
-## Konsep Inti Data
+Setiap pengguna terdaftar ke dalam sebuah **company** (bisnis). Seluruh data — produk, bahan baku, resep, stok, hingga laporan — terisolasi per company. Satu user bisa menjadi anggota di beberapa company dengan role yang berbeda.
 
-- **Produk jual** disimpan di `products` dan `product_variants`.
-- **Komponen biaya** (bahan, packaging, jasa) disimpan di `cost_items`.
-- **Harga komponen** disimpan di `cost_item_prices`.
-- **Resep/BOM** disimpan di `recipes`, `recipe_materials`, `recipe_costs`.
-- **Mutasi stok** disimpan di `cost_item_inventory_movements`.
-- **Saldo stok + nilai aset** disimpan di `cost_item_inventory_balances`.
-- **Satuan + konversi** disimpan di `units` dan `unit_conversions`.
+---
 
-## Alur End-to-End Operasional
+## Alur 0 — Onboarding Company Baru
 
-### 1) Setup Master Data
+Urutan saat pertama kali mendaftar:
 
-Urutan setup yang disarankan:
+1. User daftar akun (email + password via Supabase Auth).
+2. User membuat **company** baru → otomatis menjadi **Owner**.
+3. Owner melakukan setup awal:
+   - Isi satuan dan konversi (`units`, `unit_conversions`).
+   - Daftarkan bahan baku (`cost_items`) beserta harga awal (`cost_item_prices`).
+   - Daftarkan produk dan varian jual (`products`, `product_variants`).
+   - Buat resep produksi/BOM (`recipes`, `recipe_materials`, `recipe_costs`).
+4. Owner mengundang anggota tim dengan role yang sesuai.
 
-1. Isi satuan dan konversi (kg, ons, gram, pcs, lusin, dll).
-2. Isi item biaya (`cost_items`) seperti bahan baku, packaging, jasa.
-3. Isi harga awal item (`cost_item_prices`).
-4. Isi produk dan varian jual (`products`, `product_variants`).
-5. Isi resep produksi/BOM (`recipes`, `recipe_materials`, `recipe_costs`).
+Catatan: seed default tersedia untuk mempercepat setup environment demo.
 
-Catatan: seed default sudah tersedia untuk mempercepat setup demo.
+---
 
-### 2) Pembelian Bahan
+## Alur 1 — Manajemen Bahan Baku
 
-Masuk dari halaman **Pembelian Bahan**:
+**Halaman:** `/bahan-baku`
 
-- User input item, qty masuk, harga beli/unit, supplier, referensi.
-- Sistem mencatat mutasi `purchase` ke `cost_item_inventory_movements`.
-- Sistem mengupdate `cost_item_inventory_balances`:
-  - `qty_on_hand`
-  - `avg_cost_per_unit` (moving average)
-  - `asset_value`
+**Siapa yang melakukan:** Owner, Admin, Operator
 
-Hasil: stok bertambah dan nilai aset bahan otomatis ikut ter-update.
+### Tambah Bahan Baru
+1. Isi nama bahan, tipe (`raw_material` / `packaging` / dll), satuan default.
+2. Sistem menyimpan ke `cost_items`.
+3. Isi harga referensi awal → disimpan ke `cost_item_prices`.
+4. Isi stok awal → sistem mencatat mutasi `opening` ke `cost_item_inventory_movements`.
+5. `cost_item_inventory_balances` otomatis diperbarui (qty, avg cost, asset value).
 
-### 3) Mutasi Stok Harian
+### Update Harga Bahan
+Jika harga supplier berubah, catat harga baru di `cost_item_prices` dengan tanggal efektif baru. Harga lama tetap tersimpan sebagai histori.
 
-Masuk dari halaman **Bahan Baku** / **Mutasi Stok**:
+---
 
-- Jenis mutasi: opening, purchase, production_in/out, adjustment, transfer, dll.
-- Validasi yang diterapkan:
-  - arah qty masuk/keluar sesuai tipe mutasi
-  - warning stok negatif
-  - `unitCost` wajib untuk opening/purchase
+## Alur 2 — Pembelian Bahan Baku
 
-Hasil: jejak mutasi terekam dan saldo stok tetap konsisten.
+**Halaman:** `/pembelian`
 
-### 4) Penyusunan Resep Produksi (BOM)
+**Siapa yang melakukan:** Owner, Admin, Operator
 
-Masuk dari halaman **Resep Produksi**:
+1. Pilih bahan baku yang dibeli.
+2. Input qty, harga beli per unit, catatan supplier.
+3. Sistem mencatat mutasi `purchase` ke `cost_item_inventory_movements`.
+4. Sistem memperbarui `cost_item_inventory_balances`:
+   - `qty_on_hand` bertambah
+   - `avg_cost_per_unit` dihitung ulang (moving average)
+   - `asset_value` diperbarui
 
-- Pilih varian produk target.
-- Definisikan output batch, satuan output, loss persen.
-- Isi material yang dibutuhkan (qty, unit, waste).
-- Isi biaya tambahan (labor/overhead, per batch/per unit).
+**Hasil:** Stok bertambah dan nilai aset bahan tercermin secara real-time di dashboard.
 
-Hasil: resep siap dipakai untuk kalkulasi HPP.
+---
 
-### 5) Kalkulasi HPP
+## Alur 3 — Penyusunan Resep Produksi (BOM)
 
-Masuk dari halaman **Kalkulator HPP**:
+**Halaman:** `/resep-produksi`
 
-- User pilih resep.
-- Sistem hitung:
-  - biaya material (setelah waste + konversi satuan)
-  - biaya tambahan
-  - total biaya batch
-  - HPP per output unit
-- User isi target margin untuk rekomendasi harga jual.
-- User bisa simulasi harga jual manual untuk lihat margin aktual.
+**Siapa yang melakukan:** Owner, Admin
 
-Hasil: pengguna dapat menentukan harga jual berbasis data biaya aktual.
+1. Buat resep baru — pilih varian produk target.
+2. Definisikan output batch: qty, satuan, loss persen.
+3. Tambahkan material yang dibutuhkan: bahan, qty, satuan, waste persen.
+4. Tambahkan biaya tambahan jika ada: tenaga kerja, gas, overhead (per batch atau per unit).
+5. Simpan sebagai `draft` → review → ubah status ke `active` saat siap dipakai.
 
-### 6) Analitik Dashboard
+**Status resep:**
+- `draft` — sedang disusun, belum dipakai untuk produksi
+- `active` — resep aktif, bisa dipakai kalkulasi HPP dan post produksi
+- `archived` — resep lama, read-only, tidak bisa dipakai lagi
 
-Dashboard menampilkan ringkasan keputusan:
+---
 
-- nilai aset bahan baku total
-- top 5 item aset terbesar
-- tren biaya bahan (harga terbaru vs sebelumnya)
-- margin tertinggi/terendah per produk
+## Alur 4 — Kalkulasi HPP
 
-Hasil: pemilik usaha punya gambaran cepat kondisi bisnis.
+**Halaman:** `/hpp`
 
-## Alur Formula yang Digunakan
+**Siapa yang melakukan:** Owner, Admin
 
-### HPP
+1. Pilih resep yang berstatus `active`.
+2. Sistem menghitung secara otomatis:
+   - Biaya tiap bahan = `qty × (1 + waste%) × harga_terbaru`
+   - Total biaya batch = total biaya material + total biaya tambahan
+   - Output efektif = `output_qty × (1 - loss%)`
+   - **HPP per unit = total biaya batch ÷ output efektif**
+3. User bisa simulasi:
+   - Input target margin → sistem rekomendasikan harga jual minimum
+   - Input harga jual manual → sistem tampilkan margin aktual
 
-- `effective_output_qty = output_qty * (1 - loss_percent/100)`
-- `material_cost_i = qty_i * (1 + waste_percent_i/100) * unit_cost_i`
-- `total_batch_cost = total_material_cost + total_additional_cost`
-- `hpp_per_unit = total_batch_cost / effective_output_qty`
+**Hasil:** Pemilik bisnis memiliki dasar data untuk menetapkan harga jual.
 
-### Persediaan/Aset
+---
 
-- `asset_value_item = qty_on_hand * avg_cost_per_unit`
-- `total_inventory_asset = SUM(asset_value_item)`
-- Moving average saat pembelian masuk:
-  - nilai lama + nilai masuk => nilai baru
-  - qty lama + qty masuk => qty baru
-  - avg baru = nilai baru / qty baru
+## Alur 5 — Post Produksi
 
-## Rekomendasi SOP Pemakaian Harian
+**Halaman:** `/produksi`
+
+**Siapa yang melakukan:** Owner, Admin, Operator
+
+1. Pilih resep `active` yang akan dijalankan.
+2. Sistem menampilkan preview: bahan yang akan dikonsumsi + qty.
+3. Konfirmasi → sistem memproses:
+   - Mencatat mutasi `production_out` untuk tiap bahan di `cost_item_inventory_movements`
+   - Mengurangi stok di `cost_item_inventory_balances`
+   - Menambah stok barang jadi di `product_variants.stock`
+4. Produksi tercatat dengan referensi batch untuk audit trail.
+
+**Hasil:** Stok bahan berkurang otomatis, stok produk jadi bertambah.
+
+---
+
+## Alur 6 — Penjualan *(in development)*
+
+**Halaman:** `/penjualan`
+
+**Siapa yang melakukan:** Owner, Admin, Kasir
+
+1. Pilih produk dan varian yang dijual.
+2. Input qty dan harga jual aktual.
+3. Sistem mencatat transaksi penjualan.
+4. Sistem mencatat mutasi `sale_out` → stok produk jadi berkurang.
+5. Margin per transaksi dihitung: `harga jual - HPP`.
+
+---
+
+## Alur 7 — Laporan Profit *(in development)*
+
+**Halaman:** `/laporan`
+
+**Siapa yang melakukan:** Owner, Admin
+
+Laporan yang direncanakan:
+- Laba rugi per periode (harian / mingguan / bulanan)
+- Margin per produk
+- Tren biaya bahan baku
+- Produk terlaris vs margin tertinggi
+- Nilai aset persediaan bahan baku
+
+---
+
+## Alur 8 — Pemantauan Dashboard
+
+**Halaman:** `/`
+
+**Siapa yang melakukan:** Semua role
+
+Dashboard menampilkan ringkasan kondisi bisnis saat ini:
+- Total nilai aset bahan baku
+- Top 5 bahan baku dengan nilai aset terbesar
+- Tren perubahan harga bahan
+- Margin tertinggi dan terendah per produk
+
+---
+
+## Alur 9 — Manajemen Tim
+
+**Halaman:** `/team`
+
+**Siapa yang melakukan:** Owner, Admin (dengan batasan)
+
+1. Owner mengundang anggota baru via email.
+2. Pilih role untuk anggota tersebut.
+3. Anggota menerima undangan dan membuat/login ke akun.
+4. Akses anggota otomatis terbatas sesuai role-nya.
+
+| Role | Bisa diundang oleh |
+|---|---|
+| Admin | Owner |
+| Operator | Owner, Admin |
+| Kasir | Owner, Admin |
+| Viewer | Owner, Admin |
+
+---
+
+## Formula Utama
+
+### HPP per Unit
+```
+output_efektif   = output_qty × (1 - loss_percent / 100)
+biaya_material_i = qty_i × (1 + waste_percent_i / 100) × harga_terbaru_i
+total_biaya_batch = Σ(biaya_material_i) + Σ(biaya_tambahan)
+HPP_per_unit     = total_biaya_batch / output_efektif
+```
+
+### Moving Average Biaya Stok (saat pembelian masuk)
+```
+qty_baru     = qty_lama + qty_masuk
+nilai_baru   = nilai_lama + (qty_masuk × harga_beli)
+avg_baru     = nilai_baru / qty_baru
+asset_value  = qty_baru × avg_baru
+```
+
+### Saat Stok Keluar (produksi)
+```
+qty_baru    = qty_lama - qty_keluar
+nilai_keluar = qty_keluar × avg_cost_saat_ini
+nilai_baru  = nilai_lama - nilai_keluar
+avg_cost    = tidak berubah sampai ada pembelian masuk berikutnya
+```
+
+---
+
+## SOP Operasional Harian
 
 1. Catat semua pembelian bahan di hari yang sama.
-2. Catat mutasi produksi keluar/masuk secara rutin.
-3. Update harga bahan saat ada perubahan supplier.
-4. Review kalkulator HPP sebelum ubah harga jual.
-5. Pantau dashboard tiap minggu untuk evaluasi margin.
-
-## Ringkasan Singkat
-
-Aplikasi ini bekerja dengan prinsip:
-
-- **stok dan biaya dicatat dulu**,
-- lalu **HPP dihitung dari resep + harga terbaru**,
-- kemudian **harga jual dan margin diputuskan berbasis data**,
-- dan akhirnya **kinerja dipantau lewat dashboard analitik**.
+2. Catat post produksi setiap kali batch selesai.
+3. Catat semua penjualan di hari yang sama.
+4. Update harga bahan jika ada perubahan dari supplier.
+5. Review dashboard tiap minggu untuk evaluasi margin.
+6. Review HPP sebelum mengubah harga jual produk.
