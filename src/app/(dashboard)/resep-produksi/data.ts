@@ -292,10 +292,14 @@ export async function getResepProduksiRecipeDetailData(recipeId: string) {
       ? db.query.profiles.findFirst({
           where: eq(profiles.id, user.id),
           with: {
-            role: {
-              columns: {
-                title: true,
-                displayName: true,
+            companyMemberships: {
+              with: {
+                role: {
+                  columns: {
+                    title: true,
+                    displayName: true,
+                  },
+                },
               },
             },
           },
@@ -303,13 +307,14 @@ export async function getResepProduksiRecipeDetailData(recipeId: string) {
       : null,
   ]);
 
-  const roleTitle = (profile?.role?.title ?? "").toLowerCase();
+  const membership = profile?.companyMemberships?.[0];
+  const roleTitle = (membership?.role?.title ?? "").toLowerCase();
   const isReadOnlyRole =
     roleTitle.includes("viewer") ||
     roleTitle.includes("read") ||
     roleTitle.includes("kasir") ||
     roleTitle.includes("operator");
-  const canManageByRole = !!profile?.role && !isReadOnlyRole;
+  const canManageByRole = !!membership?.role && !isReadOnlyRole;
   const canManageByStatus = recipe ? recipe.status !== "archived" : false;
   const canManage = canManageByRole && canManageByStatus;
 
@@ -321,7 +326,7 @@ export async function getResepProduksiRecipeDetailData(recipeId: string) {
       canManage,
       canManageByRole,
       canManageByStatus,
-      roleName: profile?.role?.displayName ?? profile?.role?.title ?? null,
+      roleName: membership?.role?.displayName ?? membership?.role?.title ?? null,
     },
   };
 }

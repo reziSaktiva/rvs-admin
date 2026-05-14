@@ -27,7 +27,7 @@ type Props = {
   roles: Role[];
 };
 
-export function AddMemberDialog({ roles }: Props) {
+export function AddMemberDialog({ roles: _roles }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,7 +46,6 @@ export function AddMemberDialog({ roles }: Props) {
       password: formData.get("password") as string,
       phone: formData.get("phone") as string,
       gender: formData.get("gender") as "male" | "female" | "other",
-      roleId: formData.get("roleId") as string,
     });
 
     setLoading(false);
@@ -73,12 +72,11 @@ export function AddMemberDialog({ roles }: Props) {
         <DialogHeader>
           <DialogTitle>Tambah Anggota Baru</DialogTitle>
           <DialogDescription>
-            Isi data berikut untuk menambahkan anggota tim baru.
+            Buat akun untuk anggota tim. Role dapat ditetapkan setelah akun dibuat.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Full Name */}
           <div className="space-y-1.5">
             <Label htmlFor="fullName">Nama Lengkap</Label>
             <Input
@@ -89,7 +87,6 @@ export function AddMemberDialog({ roles }: Props) {
             />
           </div>
 
-          {/* Username */}
           <div className="space-y-1.5">
             <Label htmlFor="username">Username</Label>
             <Input
@@ -100,7 +97,6 @@ export function AddMemberDialog({ roles }: Props) {
             />
           </div>
 
-          {/* Email */}
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -112,7 +108,6 @@ export function AddMemberDialog({ roles }: Props) {
             />
           </div>
 
-          {/* Password */}
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
             <Input
@@ -125,20 +120,17 @@ export function AddMemberDialog({ roles }: Props) {
             />
           </div>
 
-          {/* Phone */}
-          <div className="space-y-1.5">
-            <Label htmlFor="phone">No. Telepon</Label>
-            <Input
-              id="phone"
-              name="phone"
-              type="tel"
-              placeholder="Contoh: 08123456789"
-            />
-          </div>
-
-          {/* Gender & Role — side by side */}
           <div className="grid grid-cols-2 gap-4">
-            {/* Gender */}
+            <div className="space-y-1.5">
+              <Label htmlFor="phone">No. Telepon</Label>
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                placeholder="Contoh: 08123456789"
+              />
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="gender">Jenis Kelamin</Label>
               <select
@@ -150,23 +142,6 @@ export function AddMemberDialog({ roles }: Props) {
                 <option value="male">Laki-laki</option>
                 <option value="female">Perempuan</option>
                 <option value="other">Lainnya</option>
-              </select>
-            </div>
-
-            {/* Role */}
-            <div className="space-y-1.5">
-              <Label htmlFor="roleId">Role</Label>
-              <select
-                id="roleId"
-                name="roleId"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">-- Pilih Role --</option>
-                {roles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.displayName}
-                  </option>
-                ))}
               </select>
             </div>
           </div>

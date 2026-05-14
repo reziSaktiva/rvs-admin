@@ -23,28 +23,30 @@ import {
 // ─── Roles ────────────────────────────────────────────────────────────────────
 
 export const rolesRelations = relations(roles, ({ many }) => ({
-  profiles: many(profiles),
-  companyMembers: many(companyMembers),
+  companyMembers: many(companyMembers, { relationName: "member_role" }),
 }));
 
 // ─── Companies ────────────────────────────────────────────────────────────────
 
 export const companiesRelations = relations(companies, ({ many }) => ({
-  members: many(companyMembers),
+  members: many(companyMembers, { relationName: "member_company" }),
 }));
 
 // ─── Company Members ──────────────────────────────────────────────────────────
 
 export const companyMembersRelations = relations(companyMembers, ({ one }) => ({
   company: one(companies, {
+    relationName: "member_company",
     fields: [companyMembers.companyId],
     references: [companies.id],
   }),
   profile: one(profiles, {
+    relationName: "member_profile",
     fields: [companyMembers.profileId],
     references: [profiles.id],
   }),
   role: one(roles, {
+    relationName: "member_role",
     fields: [companyMembers.roleId],
     references: [roles.id],
   }),
@@ -52,12 +54,8 @@ export const companyMembersRelations = relations(companyMembers, ({ one }) => ({
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
 
-export const profilesRelations = relations(profiles, ({ one, many }) => ({
-  role: one(roles, {
-    fields: [profiles.roleId],
-    references: [roles.id],
-  }),
-  companyMemberships: many(companyMembers),
+export const profilesRelations = relations(profiles, ({ many }) => ({
+  companyMemberships: many(companyMembers, { relationName: "member_profile" }),
 }));
 
 // ─── Categories ───────────────────────────────────────────────────────────────
