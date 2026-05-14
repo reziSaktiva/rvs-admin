@@ -69,6 +69,31 @@ export const roles = pgTable(
   (table) => [unique("roles_name_key").on(table.title)]
 );
 
+// ─── Companies ────────────────────────────────────────────────────────────────
+
+export const companies = pgTable(
+  "companies",
+  {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    logoUrl: text("logo_url"),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+  },
+  (table) => [
+    unique("companies_name_key").on(table.name),
+    unique("companies_slug_key").on(table.slug),
+  ]
+);
+
 // ─── Profiles ─────────────────────────────────────────────────────────────────
 // FK ke auth.users(id) tidak didefinisikan di sini karena auth schema
 // dikelola oleh Supabase — constraint tetap aktif di level database.
@@ -96,6 +121,39 @@ export const profiles = pgTable(
   (table) => [
     foreignKey({
       name: "profiles_role_id_fkey",
+      columns: [table.roleId],
+      foreignColumns: [roles.id],
+    }),
+  ]
+);
+
+// ─── Company Members ──────────────────────────────────────────────────────────
+
+export const companyMembers = pgTable(
+  "company_members",
+  {
+    companyId: uuid("company_id").notNull(),
+    profileId: uuid("profile_id").notNull(),
+    roleId: uuid("role_id").notNull(),
+    joinedAt: timestamp("joined_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.companyId, table.profileId], name: "company_members_pkey" }),
+    foreignKey({
+      name: "company_members_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "company_members_profile_id_fkey",
+      columns: [table.profileId],
+      foreignColumns: [profiles.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "company_members_role_id_fkey",
       columns: [table.roleId],
       foreignColumns: [roles.id],
     }),

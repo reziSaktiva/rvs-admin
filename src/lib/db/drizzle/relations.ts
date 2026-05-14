@@ -2,6 +2,8 @@ import { relations } from "drizzle-orm";
 import {
   roles,
   profiles,
+  companies,
+  companyMembers,
   product,
   productVariant,
   categories,
@@ -22,15 +24,40 @@ import {
 
 export const rolesRelations = relations(roles, ({ many }) => ({
   profiles: many(profiles),
+  companyMembers: many(companyMembers),
+}));
+
+// ─── Companies ────────────────────────────────────────────────────────────────
+
+export const companiesRelations = relations(companies, ({ many }) => ({
+  members: many(companyMembers),
+}));
+
+// ─── Company Members ──────────────────────────────────────────────────────────
+
+export const companyMembersRelations = relations(companyMembers, ({ one }) => ({
+  company: one(companies, {
+    fields: [companyMembers.companyId],
+    references: [companies.id],
+  }),
+  profile: one(profiles, {
+    fields: [companyMembers.profileId],
+    references: [profiles.id],
+  }),
+  role: one(roles, {
+    fields: [companyMembers.roleId],
+    references: [roles.id],
+  }),
 }));
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
 
-export const profilesRelations = relations(profiles, ({ one }) => ({
+export const profilesRelations = relations(profiles, ({ one, many }) => ({
   role: one(roles, {
     fields: [profiles.roleId],
     references: [roles.id],
   }),
+  companyMemberships: many(companyMembers),
 }));
 
 // ─── Categories ───────────────────────────────────────────────────────────────
