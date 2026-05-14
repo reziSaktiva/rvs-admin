@@ -6,6 +6,8 @@ export default defineConfig({
     out: "./src/lib/db/drizzle",
     schemaFilter: ["public"],
     tablesFilter: [
+        "companies",
+        "company_members",
         "roles",
         "profiles",
         "categories",
