@@ -1,219 +1,353 @@
-# HPP Schema Guide
+# Schema Database — Panduan Lengkap
 
-Dokumen ini menjelaskan fungsi setiap tabel pada schema saat ini, termasuk tabel baru untuk perhitungan HPP (Cost of Goods Sold) yang fleksibel untuk berbagai jenis usaha.
-
-## Tujuan Umum
-
-- Mendukung katalog produk dan varian yang dijual.
-- Mendukung resep produksi (BOM) untuk menghitung modal per produk.
-- Mendukung harga bahan yang berubah dari waktu ke waktu.
-- Mendukung konversi satuan agar 1 kg, 1 lusin, 1 pcs, dan lain-lain bisa dihitung konsisten.
-
-## Daftar Tabel dan Fungsinya
-
-### 1) `roles`
-
-Menyimpan role dan hak akses user aplikasi.
-
-- Contoh data: owner, admin, kasir.
-- Dipakai oleh tabel `profiles`.
-
-### 2) `profiles`
-
-Menyimpan profil pengguna aplikasi yang terhubung ke auth user.
-
-- Memiliki referensi ke `roles` melalui `role_id`.
-- Tidak terkait langsung dengan HPP, tetapi penting untuk otorisasi fitur.
-
-### 3) `categories`
-
-Kategori produk untuk pengelompokan katalog.
-
-- Contoh: Kaos Kaki, Baju, Celana.
-- Dipakai oleh tabel `products`.
-
-### 4) `keywords`
-
-Tag/keyword untuk pelabelan produk.
-
-- Contoh: premium, anak, olahraga.
-- Relasi many-to-many ke `products` lewat `product_keywords`.
-
-### 5) `products`
-
-Master produk secara umum.
-
-- Menyimpan nama produk, deskripsi, gambar, status aktif.
-- Satu produk bisa punya banyak varian di `product_variants`.
-
-### 6) `product_variants`
-
-Varian jual dari produk.
-
-- Menyimpan SKU, barcode, ukuran, harga jual, stok.
-- Menjadi target dari resep produksi lewat `recipes.product_variant_id`.
-- Ini penting supaya HPP dihitung per varian yang benar-benar dijual.
-
-### 7) `product_keywords`
-
-Tabel pivot relasi many-to-many antara `products` dan `keywords`.
-
-- Menyimpan pasangan `product_id` + `tag_id`.
+Dokumen ini menjelaskan fungsi setiap tabel pada schema database, termasuk konteks multi-tenant dan rencana tabel yang akan ditambahkan.
 
 ---
 
-### 8) `units`
+## Gambaran Besar
 
-Master satuan untuk kebutuhan bahan, output produksi, dan harga.
+Schema ini dibagi menjadi 5 kelompok:
 
-- Contoh: pcs, pasang, lusin, gram, kg.
-- `dimension` membantu validasi domain satuan (count, weight, volume, dst).
+```
+┌──────────────────────┐   ┌──────────────────────┐
+│  TENANT / AUTH        │   │  KATALOG PRODUK       │
+│  companies           │   │  categories           │
+│  company_members     │   │  keywords             │
+│  roles               │   │  products             │
+│  profiles            │   │  product_variants     │
+└──────────────────────┘   │  product_keywords     │
+                           └──────────────────────┘
+┌──────────────────────┐   ┌──────────────────────┐
+│  RESEP & HPP          │   │  INVENTARIS           │
+│  units               │   │  cost_item_inventory_ │
+│  unit_conversions    │   │  balances             │
+│  cost_items          │   │  cost_item_inventory_ │
+│  cost_item_prices    │   │  movements            │
+│  recipes             │   └──────────────────────┘
+│  recipe_materials    │
+│  recipe_costs        │
+└──────────────────────┘
+```
 
-### 9) `unit_conversions`
+> Tabel `companies` dan `company_members` **belum ada di schema saat ini** dan akan segera ditambahkan. Semua tabel lainnya sudah aktif di database.
 
-Menyimpan konversi antar satuan.
+---
 
-- Field penting: `from_unit_id`, `to_unit_id`, `multiplier`.
-- Arti: `1 from_unit = multiplier to_unit`.
-- Contoh:
-  - 1 kg = 1000 gram
-  - 1 lusin = 12 pcs
+## Kelompok 1: Tenant & Auth
 
-### 10) `cost_items`
+### `companies` *(akan ditambahkan)*
 
-Master item biaya yang bisa dipakai di resep.
+Menyimpan data setiap bisnis yang terdaftar di platform.
 
-- Jenis item ditandai oleh `item_type`:
-  - `raw_material`: bahan baku utama
-  - `packaging`: kemasan (plastik, label, box)
-  - `finished_good`: barang jadi (jika dipakai sebagai komponen)
-  - `service`: jasa tertentu
-- `default_unit_id` adalah satuan default item.
+```
+id, name, slug, logo_url
+owner_id → profiles.id
+is_active, created_at
+```
 
-### 11) `cost_item_prices`
+Setiap company adalah workspace terisolasi. Semua data operasional (produk, bahan, resep, stok) akan terikat ke `company_id`.
+
+### `company_members` *(akan ditambahkan)*
+
+Tabel keanggotaan — menghubungkan user ke company dengan role tertentu.
+
+```
+company_id → companies.id
+profile_id → profiles.id
+role_id    → roles.id
+joined_at
+```
+
+- Satu user bisa menjadi anggota di beberapa company.
+- Setiap company wajib punya minimal 1 member dengan role Owner.
+
+### `roles`
+
+Menyimpan daftar peran beserta hak aksesnya.
+
+```
+id, title, display_name
+can_manage_users
+can_manage_products
+can_edit_products
+can_use_pos
+can_access_finance
+can_access_all
+```
+
+Contoh roles: `owner`, `admin`, `operator`, `kasir`, `viewer`.
+
+Role `owner` memiliki `can_access_all: true` dan hak untuk mengelola company serta keanggotaan tim.
+
+### `profiles`
+
+Data profil pengguna. `id` identik dengan `id` di `auth.users` Supabase.
+
+```
+id  ← sama dengan Supabase auth.users.id
+username, full_name, phone, gender, photo_url
+role_id → roles.id
+is_active
+```
+
+---
+
+## Kelompok 2: Katalog Produk
+
+### `categories`
+
+Kategori untuk mengelompokkan produk.
+
+```
+id, name, slug
+```
+
+Contoh: "Minuman", "Makanan Ringan", "Frozen Food"
+
+### `keywords`
+
+Tag/label untuk produk — memudahkan filter dan pencarian.
+
+```
+id, name
+```
+
+Contoh: "bestseller", "pedas", "tanpa gula"
+
+### `products`
+
+Master produk per company.
+
+```
+id, name, description, image_url, is_active
+category_id → categories.id
+```
+
+Satu produk bisa punya banyak varian.
+
+### `product_variants`
+
+Varian jual dari setiap produk (ukuran, rasa, dll).
+
+```
+id, product_id → products.id
+size, sku, barcode
+price      ← harga jual ke konsumen
+stock      ← stok barang jadi saat ini
+is_active
+```
+
+Varian adalah unit terkecil yang dijual dan yang dihitung HPP-nya.
+
+### `product_keywords`
+
+Tabel pivot many-to-many antara `products` dan `keywords`.
+
+```
+product_id → products.id
+tag_id     → keywords.id
+```
+
+---
+
+## Kelompok 3: Resep & HPP
+
+### `units`
+
+Master satuan ukuran.
+
+```
+id, code, name, dimension
+```
+
+`dimension` mengelompokkan satuan: `count`, `weight`, `volume`, `length`, dll.
+
+Contoh: `{ code: "kg", name: "Kilogram", dimension: "weight" }`
+
+### `unit_conversions`
+
+Konversi antar dua satuan dalam dimensi yang sama.
+
+```
+from_unit_id → units.id
+to_unit_id   → units.id
+multiplier   (1 from_unit = multiplier × to_unit)
+```
+
+Contoh: 1 kg = 1000 gram → `multiplier: 1000`
+
+### `cost_items`
+
+Master item biaya — bahan baku, kemasan, jasa, dll.
+
+```
+id, name, sku
+item_type: raw_material | packaging | finished_good | service
+default_unit_id → units.id
+is_active
+```
+
+Item ini dipakai di resep sebagai komponen biaya.
+
+### `cost_item_prices`
 
 Histori harga per item biaya.
 
-- Menyimpan harga per satuan pada waktu tertentu (`effective_from`).
-- Dipakai untuk memilih harga terbaru saat hitung HPP.
-- Penting untuk bisnis UMKM karena harga bahan sering berubah.
+```
+id, item_id → cost_items.id
+unit_id → units.id
+price_per_unit
+effective_from   ← tanggal harga mulai berlaku
+source_note      ← catatan sumber harga (nama supplier, dll)
+```
 
-### 12) `recipes`
+Menyimpan **semua histori harga**, bukan hanya harga terbaru. Kalkulasi HPP selalu mengambil harga dengan `effective_from` terbaru.
 
-Header resep/BOM untuk sebuah varian produk.
+### `recipes`
 
-- Terhubung ke `product_variants`.
-- Menyimpan:
-  - `output_qty`: total hasil per batch
-  - `output_unit_id`: satuan hasil batch
-  - `loss_percent`: penyusutan produksi
-  - `status`: draft/active/archived
-- Satu varian bisa punya beberapa resep (misalnya versi lama dan baru).
+Header resep produksi (BOM = Bill of Materials) per varian produk.
 
-### 13) `recipe_materials`
+```
+id, name
+product_variant_id → product_variants.id
+output_qty         ← jumlah output per batch
+output_unit_id → units.id
+loss_percent       ← penyusutan produksi (%)
+status: draft | active | archived
+notes
+```
 
-Detail material yang dipakai di resep.
+Satu varian bisa punya beberapa resep (versi lama dan baru). Hanya resep `active` yang bisa dipakai.
 
-- Setiap baris adalah 1 komponen bahan.
-- Menyimpan qty, satuan, waste persen, urutan.
-- Bisa menandai komponen opsional (`is_optional`).
-- Contoh untuk 1 lusin kaos kaki:
-  - 12 pasang kaos kaki
-  - 12 plastik kecil
-  - 1 plastik luar lusin
-  - 12 label merek (opsional sesuai produk)
+### `recipe_materials`
 
-### 14) `recipe_costs`
+Daftar bahan yang dibutuhkan dalam satu resep.
 
-Detail biaya non-material untuk resep.
+```
+id, recipe_id → recipes.id
+item_id → cost_items.id
+qty
+unit_id → units.id
+waste_percent   ← penyusutan bahan (%)
+is_optional     ← bahan opsional tidak selalu dipakai
+sort_order
+```
 
-- Biaya tenaga kerja, overhead, atau biaya lain.
-- Basis biaya:
-  - `per_batch`: biaya berlaku sekali per batch
-  - `per_unit`: biaya berlaku per unit output
-- Digabungkan dengan material untuk mendapatkan total biaya batch.
+### `recipe_costs`
 
-### 15) `cost_item_inventory_balances`
+Biaya non-material dalam resep (tenaga kerja, overhead, dll).
 
-Menyimpan saldo stok terkini per item biaya (terutama bahan baku/packaging) untuk kebutuhan valuasi aset persediaan.
+```
+id, recipe_id → recipes.id
+name
+component_type: material | labor | overhead | other
+basis: per_batch | per_unit
+amount
+```
 
-- Satu baris merepresentasikan posisi stok terbaru dari satu item.
-- Field utama:
-  - `qty_on_hand`: jumlah stok saat ini
-  - `avg_cost_per_unit`: biaya rata-rata per unit (moving average)
-  - `asset_value`: nilai aset stok saat ini
-  - `unit_id`: satuan saldo stok
-- Tabel ini dipakai untuk menampilkan dashboard:
-  - total nilai persediaan
-  - nilai persediaan per bahan
+`per_batch` = biaya berlaku sekali untuk seluruh batch.
+`per_unit` = biaya dikalikan jumlah output.
 
-### 16) `cost_item_inventory_movements`
+---
 
-Menyimpan histori mutasi stok item.
+## Kelompok 4: Inventaris Bahan Baku
 
-- Contoh movement:
-  - `opening`: saldo awal
-  - `purchase`: pembelian bahan
-  - `production_out`: bahan dipakai produksi
-  - `adjustment_in` / `adjustment_out`: penyesuaian stok
-- Field penting:
-  - `qty_delta`: perubahan jumlah (positif untuk masuk, negatif untuk keluar)
-  - `unit_cost`: biaya per unit pada transaksi tersebut (umumnya wajib saat stok masuk)
-  - `value_delta`: perubahan nilai persediaan
-  - `reference_type` + `reference_id`: jejak sumber transaksi (PO, produksi, adjustment)
-- Tabel ini dipakai sebagai audit trail dan dasar rekonsiliasi saldo.
+### `cost_item_inventory_balances`
 
-## Alur Perhitungan HPP dengan Tabel Ini
+Saldo stok **terkini** per item biaya. Satu baris per item.
 
-1. Ambil `recipes` aktif untuk varian produk.
-2. Ambil semua `recipe_materials`.
-3. Untuk tiap bahan:
-   - ambil harga terbaru di `cost_item_prices`
-   - konversi unit via `unit_conversions` bila perlu
-   - hitung biaya bahan per baris
-4. Tambahkan biaya dari `recipe_costs`.
-5. Hitung output efektif dari `recipes.output_qty` dan `loss_percent`.
-6. Hasil akhir: `hpp_per_output_unit`.
+```
+item_id → cost_items.id   ← PRIMARY KEY
+qty_on_hand       ← jumlah stok saat ini
+unit_id → units.id
+avg_cost_per_unit ← harga rata-rata tertimbang (moving average)
+asset_value       ← qty_on_hand × avg_cost_per_unit
+updated_at
+```
 
-## Rumus Nilai Aset Stok Bahan Baku
+Tabel ini selalu diperbarui setiap ada transaksi masuk atau keluar.
 
-### Rumus dasar per item
+### `cost_item_inventory_movements`
 
-- `asset_value_item = qty_on_hand * avg_cost_per_unit`
+Buku besar (ledger) semua pergerakan stok — tidak pernah dihapus.
 
-Jika menyimpan `asset_value` langsung di tabel saldo, rumus di atas tetap jadi validasi konsistensi data.
+```
+id, item_id → cost_items.id
+movement_type:
+  opening         ← saldo awal
+  purchase        ← pembelian dari supplier
+  production_in   ← bahan masuk dari produksi
+  production_out  ← bahan keluar untuk produksi
+  sale_out        ← bahan/produk terjual
+  adjustment_in   ← penyesuaian stok masuk
+  adjustment_out  ← penyesuaian stok keluar
+  return_in       ← retur diterima
+  return_out      ← retur dikirim
+  transfer_in     ← transfer masuk antar lokasi
+  transfer_out    ← transfer keluar antar lokasi
 
-### Rumus total aset persediaan
+qty_delta     ← positif = masuk, negatif = keluar
+unit_id, unit_cost, value_delta
+reference_type, reference_id   ← sumber transaksi (PO, batch produksi, dll)
+note, occurred_at
+```
 
-- `total_inventory_asset = SUM(asset_value_item)` untuk item tipe:
-  - `raw_material`
-  - `packaging`
+Tabel ini adalah **audit trail** lengkap. Saldo di `cost_item_inventory_balances` bisa direkonstruksi dari tabel ini.
 
-### Rumus update moving average (saat stok masuk)
+---
 
-Misal:
-- qty lama = `q_old`
-- nilai lama = `v_old`
-- qty masuk = `q_in`
-- harga masuk per unit = `c_in`
-- nilai masuk = `v_in = q_in * c_in`
+## Relasi Kunci Antar Tabel
 
-Maka:
-- `q_new = q_old + q_in`
-- `v_new = v_old + v_in`
-- `avg_cost_new = v_new / q_new`
+```
+companies (akan datang)
+    └── company_members → profiles → roles
 
-Saat stok keluar untuk produksi:
-- `v_out = q_out * avg_cost_current`
-- `q_new = q_old - q_out`
-- `v_new = v_old - v_out`
-- `avg_cost` biasanya tetap sampai ada transaksi masuk berikutnya.
+products → product_variants → recipes
+                                  ├── recipe_materials → cost_items
+                                  └── recipe_costs
 
-## Kenapa Struktur Ini Fleksibel untuk UMKM
+cost_items
+    ├── cost_item_prices         (histori harga)
+    ├── cost_item_inventory_balances  (saldo terkini)
+    └── cost_item_inventory_movements (semua transaksi)
 
-- Bisa dipakai untuk retail/produksi sederhana sampai semi-manufaktur.
-- Tidak hardcoded untuk kaos kaki saja; bisa baju, celana, makanan, dll.
-- Mendukung packaging sebagai komponen biaya terpisah.
-- Mendukung perubahan harga bahan dari waktu ke waktu.
-- Mendukung konversi satuan berbeda antar supplier dan resep internal.
-- Memberikan visibilitas nilai aset stok bahan baku secara real-time.
+units ← dipakai oleh hampir semua tabel
+```
+
+---
+
+## Enums
+
+| Enum | Nilai yang Diizinkan |
+|---|---|
+| `item_type` | `raw_material`, `packaging`, `finished_good`, `service` |
+| `recipe_status_type` | `draft`, `active`, `archived` |
+| `cost_component_type` | `material`, `labor`, `overhead`, `other` |
+| `cost_basis_type` | `per_batch`, `per_unit` |
+| `stock_movement_type` | `opening`, `purchase`, `production_in`, `production_out`, `sale_out`, `adjustment_in`, `adjustment_out`, `return_in`, `return_out`, `transfer_in`, `transfer_out` |
+| `gender_type` | `male`, `female`, `other` |
+
+---
+
+## Formula Kunci
+
+### HPP per Unit
+```
+output_efektif   = output_qty × (1 - loss_percent / 100)
+biaya_bahan_i    = qty_i × (1 + waste_percent_i / 100) × harga_terbaru_i
+total_biaya_batch = Σ(biaya_bahan) + Σ(biaya_tambahan)
+HPP_per_unit     = total_biaya_batch / output_efektif
+```
+
+### Moving Average (saat stok masuk)
+```
+qty_baru  = qty_lama + qty_masuk
+nilai_baru = nilai_lama + (qty_masuk × harga_beli)
+avg_baru  = nilai_baru / qty_baru
+```
+
+### Nilai Aset Total
+```
+asset_value_item  = qty_on_hand × avg_cost_per_unit
+total_asset_value = Σ(asset_value_item) untuk semua item aktif
+```
