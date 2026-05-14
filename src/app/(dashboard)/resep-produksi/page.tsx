@@ -23,7 +23,7 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
   const pageSize = [10, 25, 50].includes(parsedPageSize) ? parsedPageSize : 25;
   const statusParam = params.status as string | undefined;
   const selectedStatus = statusParam === "__all" ? undefined : isRecipeStatus(statusParam) ? statusParam : undefined;
-  const { recipeRows, availableItems, availableUnits, categories, products, allVariants, hasNextPage } =
+  const { recipeRows, availableUnits, categories, products, allVariants, hasNextPage } =
     await getResepProduksiPageData(selectedStatus, { page, pageSize });
   const hasPreviousPage = page > 1;
 
@@ -52,7 +52,6 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
       <RecipeListCard
         recipes={recipeRows}
         selectedStatus={selectedStatus}
-        availableItems={availableItems}
         availableUnits={availableUnits}
         categories={categories}
         products={products}

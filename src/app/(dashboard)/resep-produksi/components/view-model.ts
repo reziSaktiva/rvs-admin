@@ -58,6 +58,28 @@ export const errorLabel = (code?: string) => {
     data_produk_tidak_lengkap: "Data produk/varian untuk update belum lengkap.",
     data_resep_tidak_lengkap: "Data resep untuk update belum lengkap.",
     status_resep_invalid: "Status resep tidak valid.",
+    material_tidak_lengkap: "Data material belum lengkap.",
+    qty_material_invalid: "Qty material harus lebih dari 0.",
+    biaya_tidak_lengkap: "Data biaya tambahan belum lengkap.",
+    jenis_biaya_invalid: "Jenis biaya tidak valid.",
+    basis_biaya_invalid: "Basis biaya tidak valid.",
+    nominal_biaya_invalid: "Nominal biaya harus angka valid (>= 0).",
   };
   return map[code] ?? "Terjadi kesalahan saat menyimpan data.";
+};
+
+export const successLabel = (code?: string) => {
+  if (!code) return null;
+  const map: Record<string, string> = {
+    resep_disimpan: "Informasi resep berhasil disimpan.",
+    status_resep_disimpan: "Status resep berhasil diperbarui.",
+    produk_varian_disimpan: "Data produk dan varian berhasil diperbarui.",
+    material_ditambahkan: "Material berhasil ditambahkan.",
+    material_disimpan: "Material berhasil diperbarui.",
+    material_dihapus: "Material berhasil dihapus.",
+    biaya_ditambahkan: "Biaya tambahan berhasil ditambahkan.",
+    biaya_disimpan: "Biaya tambahan berhasil diperbarui.",
+    biaya_dihapus: "Biaya tambahan berhasil dihapus.",
+  };
+  return map[code] ?? "Perubahan berhasil disimpan.";
 };

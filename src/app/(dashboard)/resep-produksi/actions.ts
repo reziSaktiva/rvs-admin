@@ -37,9 +37,27 @@ const buildQuery = (params: Record<string, string | undefined>) => {
   return qs ? `?${qs}` : "";
 };
 
+const appendQueryToPath = (path: string, params: Record<string, string | undefined>) => {
+  const [pathname, existingQuery = ""] = path.split("?");
+  const query = new URLSearchParams(existingQuery);
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) query.set(key, value);
+  });
+
+  const queryString = query.toString();
+  return queryString ? `${pathname}?${queryString}` : pathname;
+};
+
+const sanitizeRedirectTo = (value: FormDataEntryValue | null) => {
+  const parsed = String(value ?? "").trim();
+  if (!parsed) return null;
+  if (parsed.startsWith("/resep-produksi/")) return parsed;
+  return null;
+};
+
 const routeToRecipe = (recipeId: string, status?: string, error?: string) =>
-  `/resep-produksi${buildQuery({
-    recipeId,
+  `/resep-produksi/${recipeId}${buildQuery({
     status,
     error,
   })}`;
@@ -50,6 +68,16 @@ const routeToError = (error: string, recipeId?: string, status?: string) =>
     recipeId,
     status,
   })}`;
+
+const routeToErrorOrFallback = (
+  error: string,
+  recipeId: string | undefined,
+  status: string | undefined,
+  redirectTo: string | null
+) => {
+  if (redirectTo) return appendQueryToPath(redirectTo, { error });
+  return routeToError(error, recipeId, status);
+};
 
 const isUniqueViolation = (error: unknown, constraintName?: string): boolean => {
   if (!error || typeof error !== "object") return false;
@@ -298,14 +326,15 @@ export async function updateProductAndVariantAction(formData: FormData) {
   const productId = String(formData.get("productId") ?? "").trim();
   const variantId = String(formData.get("variantId") ?? "").trim();
   const status = String(formData.get("status") ?? "").trim() || undefined;
+  const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
 
   if (!recipeId || !productId || !variantId) {
-    redirect(routeToError("data_produk_tidak_lengkap", recipeId, status));
+    redirect(routeToErrorOrFallback("data_produk_tidak_lengkap", recipeId, status, redirectTo));
   }
 
   const productName = String(formData.get("productName") ?? "").trim();
   if (!productName) {
-    redirect(routeToError("nama_produk_wajib", recipeId, status));
+    redirect(routeToErrorOrFallback("nama_produk_wajib", recipeId, status, redirectTo));
   }
 
   const productDescription = toNullableString(formData.get("productDescription"));
@@ -319,7 +348,7 @@ export async function updateProductAndVariantAction(formData: FormData) {
   const variantIsActive = toBoolean(formData.get("variantIsActive"), true);
 
   if (!Number.isFinite(variantPrice) || variantPrice < 0) {
-    redirect(routeToError("harga_varian_invalid", recipeId, status));
+    redirect(routeToErrorOrFallback("harga_varian_invalid", recipeId, status, redirectTo));
   }
 
   try {
@@ -353,19 +382,23 @@ export async function updateProductAndVariantAction(formData: FormData) {
       isUniqueViolation(error, "product_variants_sku_key") ||
       isUniqueViolation(error, "product_variants_barcode_key")
     ) {
-      redirect(routeToError("sku_barcode_duplikat", recipeId, status));
+      redirect(routeToErrorOrFallback("sku_barcode_duplikat", recipeId, status, redirectTo));
     }
     throw error;
   }
 
   revalidatePath("/resep-produksi");
   revalidatePath("/produk");
+  if (redirectTo) {
+    redirect(appendQueryToPath(redirectTo, { success: "produk_varian_disimpan" }));
+  }
   redirect(routeToRecipe(recipeId, status));
 }
 
 export async function updateRecipeStatusAction(formData: FormData) {
   const recipeId = String(formData.get("recipeId") ?? "").trim();
   const status = String(formData.get("status") ?? "").trim();
+  const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
   if (!recipeId) throw new Error("recipeId is required");
   if (!["draft", "active", "archived"].includes(status)) {
     throw new Error("Invalid recipe status");
@@ -381,15 +414,19 @@ export async function updateRecipeStatusAction(formData: FormData) {
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
+  if (redirectTo) {
+    redirect(appendQueryToPath(redirectTo, { success: "status_resep_disimpan" }));
+  }
 }
 
 export async function updateRecipeCoreAction(formData: FormData) {
   const recipeId = String(formData.get("recipeId") ?? "").trim();
   const statusFilter = String(formData.get("statusFilter") ?? "").trim() || undefined;
   const status = String(formData.get("status") ?? "").trim();
+  const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
 
   if (!recipeId) {
-    redirect(routeToError("data_resep_tidak_lengkap", undefined, statusFilter));
+    redirect(routeToErrorOrFallback("data_resep_tidak_lengkap", undefined, statusFilter, redirectTo));
   }
 
   let recipeCore: ReturnType<typeof validateRecipeCore>;
@@ -397,11 +434,11 @@ export async function updateRecipeCoreAction(formData: FormData) {
     recipeCore = validateRecipeCore(formData);
   } catch (error) {
     const code = error instanceof Error ? error.message : "VALIDASI_GAGAL";
-    redirect(routeToError(code.toLowerCase(), recipeId, statusFilter));
+    redirect(routeToErrorOrFallback(code.toLowerCase(), recipeId, statusFilter, redirectTo));
   }
 
   if (!["draft", "active", "archived"].includes(status)) {
-    redirect(routeToError("status_resep_invalid", recipeId, statusFilter));
+    redirect(routeToErrorOrFallback("status_resep_invalid", recipeId, statusFilter, redirectTo));
   }
 
   try {
@@ -415,13 +452,16 @@ export async function updateRecipeCoreAction(formData: FormData) {
       .where(eq(recipes.id, recipeId));
   } catch (error) {
     if (isUniqueViolation(error, "recipes_product_variant_id_name_key")) {
-      redirect(routeToError("nama_resep_duplikat", recipeId, statusFilter));
+      redirect(routeToErrorOrFallback("nama_resep_duplikat", recipeId, statusFilter, redirectTo));
     }
     throw error;
   }
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
+  if (redirectTo) {
+    redirect(appendQueryToPath(redirectTo, { success: "resep_disimpan" }));
+  }
   redirect(routeToRecipe(recipeId, statusFilter));
 }
 
@@ -433,9 +473,16 @@ export async function addRecipeMaterialAction(formData: FormData) {
   const wastePercent = parseNumber(formData.get("wastePercent"));
   const sortOrder = parseNumber(formData.get("sortOrder"));
   const isOptional = String(formData.get("isOptional") ?? "") === "on";
+  const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
 
-  if (!recipeId || !itemId || !unitId) throw new Error("recipeId, itemId, and unitId are required");
-  if (!Number.isFinite(qty) || qty <= 0) throw new Error("qty must be greater than 0");
+  if (!recipeId || !itemId || !unitId) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "material_tidak_lengkap" }));
+    throw new Error("recipeId, itemId, and unitId are required");
+  }
+  if (!Number.isFinite(qty) || qty <= 0) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "qty_material_invalid" }));
+    throw new Error("qty must be greater than 0");
+  }
 
   await db.insert(recipeMaterials).values({
     recipeId,
@@ -449,6 +496,9 @@ export async function addRecipeMaterialAction(formData: FormData) {
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
+  if (redirectTo) {
+    redirect(appendQueryToPath(redirectTo, { success: "material_ditambahkan" }));
+  }
 }
 
 export async function updateRecipeMaterialAction(formData: FormData) {
@@ -457,9 +507,16 @@ export async function updateRecipeMaterialAction(formData: FormData) {
   const wastePercent = parseNumber(formData.get("wastePercent"));
   const sortOrder = parseNumber(formData.get("sortOrder"));
   const isOptional = String(formData.get("isOptional") ?? "") === "on";
+  const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
 
-  if (!materialId) throw new Error("materialId is required");
-  if (!Number.isFinite(qty) || qty <= 0) throw new Error("qty must be greater than 0");
+  if (!materialId) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "material_tidak_lengkap" }));
+    throw new Error("materialId is required");
+  }
+  if (!Number.isFinite(qty) || qty <= 0) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "qty_material_invalid" }));
+    throw new Error("qty must be greater than 0");
+  }
 
   await db
     .update(recipeMaterials)
@@ -473,16 +530,26 @@ export async function updateRecipeMaterialAction(formData: FormData) {
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
+  if (redirectTo) {
+    redirect(appendQueryToPath(redirectTo, { success: "material_disimpan" }));
+  }
 }
 
 export async function deleteRecipeMaterialAction(formData: FormData) {
   const materialId = String(formData.get("materialId") ?? "").trim();
-  if (!materialId) throw new Error("materialId is required");
+  const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
+  if (!materialId) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "material_tidak_lengkap" }));
+    throw new Error("materialId is required");
+  }
 
   await db.delete(recipeMaterials).where(eq(recipeMaterials.id, materialId));
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
+  if (redirectTo) {
+    redirect(appendQueryToPath(redirectTo, { success: "material_dihapus" }));
+  }
 }
 
 export async function addRecipeCostAction(formData: FormData) {
@@ -491,15 +558,24 @@ export async function addRecipeCostAction(formData: FormData) {
   const componentType = String(formData.get("componentType") ?? "").trim();
   const basis = String(formData.get("basis") ?? "").trim();
   const amount = parseNumber(formData.get("amount"));
+  const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
 
-  if (!recipeId || !name) throw new Error("recipeId and name are required");
+  if (!recipeId || !name) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "biaya_tidak_lengkap" }));
+    throw new Error("recipeId and name are required");
+  }
   if (!["material", "labor", "overhead", "other"].includes(componentType)) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "jenis_biaya_invalid" }));
     throw new Error("Invalid componentType");
   }
   if (!["per_batch", "per_unit"].includes(basis)) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "basis_biaya_invalid" }));
     throw new Error("Invalid basis");
   }
-  if (!Number.isFinite(amount) || amount < 0) throw new Error("amount must be >= 0");
+  if (!Number.isFinite(amount) || amount < 0) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "nominal_biaya_invalid" }));
+    throw new Error("amount must be >= 0");
+  }
 
   await db.insert(recipeCosts).values({
     recipeId,
@@ -511,6 +587,9 @@ export async function addRecipeCostAction(formData: FormData) {
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
+  if (redirectTo) {
+    redirect(appendQueryToPath(redirectTo, { success: "biaya_ditambahkan" }));
+  }
 }
 
 export async function updateRecipeCostAction(formData: FormData) {
@@ -519,15 +598,24 @@ export async function updateRecipeCostAction(formData: FormData) {
   const componentType = String(formData.get("componentType") ?? "").trim();
   const basis = String(formData.get("basis") ?? "").trim();
   const amount = parseNumber(formData.get("amount"));
+  const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
 
-  if (!costId || !name) throw new Error("costId and name are required");
+  if (!costId || !name) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "biaya_tidak_lengkap" }));
+    throw new Error("costId and name are required");
+  }
   if (!["material", "labor", "overhead", "other"].includes(componentType)) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "jenis_biaya_invalid" }));
     throw new Error("Invalid componentType");
   }
   if (!["per_batch", "per_unit"].includes(basis)) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "basis_biaya_invalid" }));
     throw new Error("Invalid basis");
   }
-  if (!Number.isFinite(amount) || amount < 0) throw new Error("amount must be >= 0");
+  if (!Number.isFinite(amount) || amount < 0) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "nominal_biaya_invalid" }));
+    throw new Error("amount must be >= 0");
+  }
 
   await db
     .update(recipeCosts)
@@ -541,14 +629,24 @@ export async function updateRecipeCostAction(formData: FormData) {
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
+  if (redirectTo) {
+    redirect(appendQueryToPath(redirectTo, { success: "biaya_disimpan" }));
+  }
 }
 
 export async function deleteRecipeCostAction(formData: FormData) {
   const costId = String(formData.get("costId") ?? "").trim();
-  if (!costId) throw new Error("costId is required");
+  const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
+  if (!costId) {
+    if (redirectTo) redirect(appendQueryToPath(redirectTo, { error: "biaya_tidak_lengkap" }));
+    throw new Error("costId is required");
+  }
 
   await db.delete(recipeCosts).where(eq(recipeCosts.id, costId));
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
+  if (redirectTo) {
+    redirect(appendQueryToPath(redirectTo, { success: "biaya_dihapus" }));
+  }
 }
