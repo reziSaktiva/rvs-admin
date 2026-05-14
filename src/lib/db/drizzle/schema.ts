@@ -98,34 +98,23 @@ export const companies = pgTable(
 // FK ke auth.users(id) tidak didefinisikan di sini karena auth schema
 // dikelola oleh Supabase — constraint tetap aktif di level database.
 
-export const profiles = pgTable(
-  "profiles",
-  {
-    id: uuid().primaryKey().notNull(),
-    username: text("username").notNull(),
-    fullName: text("full_name").notNull(),
-    phone: text("phone"),
-    gender: genderType().default("other").notNull(),
-    photoUrl: text("photo_url"),
-    roleId: uuid("role_id"),
-    isActive: boolean("is_active").default(true),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).defaultNow(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).defaultNow(),
-  },
-  (table) => [
-    foreignKey({
-      name: "profiles_role_id_fkey",
-      columns: [table.roleId],
-      foreignColumns: [roles.id],
-    }),
-  ]
-);
+export const profiles = pgTable("profiles", {
+  id: uuid().primaryKey().notNull(),
+  username: text("username").notNull(),
+  fullName: text("full_name").notNull(),
+  phone: text("phone"),
+  gender: genderType().default("other").notNull(),
+  photoUrl: text("photo_url"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow(),
+});
 
 // ─── Company Members ──────────────────────────────────────────────────────────
 

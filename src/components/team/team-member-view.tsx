@@ -22,6 +22,7 @@ import {
   LayoutGridIcon,
   ListIcon,
   SearchIcon,
+  ShieldIcon,
   TrashIcon,
   UsersIcon,
 } from "lucide-react";
@@ -32,18 +33,19 @@ type Role = {
   title: string;
 };
 
+type CompanyMembership = {
+  role: Role;
+};
+
 type User = {
   id: string;
   username: string;
   fullName: string;
   phone: string | null;
   gender: "male" | "female" | "other";
-  roleId: string | null;
   photoUrl: string | null;
   isActive: boolean | null;
-  role?: {
-    displayName: string;
-  } | null;
+  companyMemberships: CompanyMembership[];
 };
 
 type TeamMemberViewProps = {
@@ -60,6 +62,19 @@ const avatarGradients = [
   "from-rose-500 to-red-500",
 ];
 
+const roleColors: Record<string, string> = {
+  owner: "bg-amber-500/15 text-amber-600 border-amber-500/30",
+  admin: "bg-violet-500/15 text-violet-600 border-violet-500/30",
+  operator: "bg-blue-500/15 text-blue-600 border-blue-500/30",
+  kasir: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30",
+  viewer: "bg-slate-500/15 text-slate-600 border-slate-500/30",
+};
+
+function getRoleColorClass(title: string) {
+  const key = title.toLowerCase();
+  return roleColors[key] ?? "bg-muted text-muted-foreground border-border";
+}
+
 function toGenderLabel(gender: User["gender"]) {
   if (gender === "male") return "Laki-laki";
   if (gender === "female") return "Perempuan";
@@ -68,21 +83,17 @@ function toGenderLabel(gender: User["gender"]) {
 
 function toInitials(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean).slice(0, 2);
-
   if (parts.length === 0) return "U";
-
   return parts.map((part) => part[0]?.toUpperCase() ?? "").join("");
 }
 
 function pickGradient(seed: string) {
   const key = seed || "user";
   let hash = 0;
-
   for (let i = 0; i < key.length; i++) {
     hash = (hash << 5) - hash + key.charCodeAt(i);
     hash |= 0;
   }
-
   return avatarGradients[Math.abs(hash) % avatarGradients.length];
 }
 
@@ -97,7 +108,6 @@ function UserAvatar({
 }) {
   const gradient = pickGradient(fullName);
   const initials = toInitials(fullName);
-
   const sizeClass =
     size === "sm"
       ? "size-8 text-xs"
@@ -128,31 +138,53 @@ function UserAvatar({
   );
 }
 
+function RoleBadge({ membership }: { membership: CompanyMembership | undefined }) {
+  if (!membership) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium bg-muted/50 text-muted-foreground border-border/60">
+        <ShieldIcon className="size-3 opacity-50" />
+        Belum ada role
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium",
+        getRoleColorClass(membership.role.title)
+      )}
+    >
+      <ShieldIcon className="size-3" />
+      {membership.role.displayName}
+    </span>
+  );
+}
+
 export function TeamMemberView({ users, roles }: TeamMemberViewProps) {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [genderFilter, setGenderFilter] = useState<
-    "all" | "male" | "female" | "other"
-  >("all");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "active" | "inactive"
-  >("all");
+  const [genderFilter, setGenderFilter] = useState<"all" | "male" | "female" | "other">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   const filteredUsers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
     return users.filter((user) => {
-      const roleValue = user.roleId ?? "";
       const activeValue = user.isActive ?? true;
       const searchSpace =
         `${user.username} ${user.fullName} ${user.phone ?? ""}`.toLowerCase();
 
       const matchQuery =
         normalizedQuery.length === 0 || searchSpace.includes(normalizedQuery);
-      const matchRole = roleFilter === "all" || roleValue === roleFilter;
-      const matchGender =
-        genderFilter === "all" || user.gender === genderFilter;
+
+      const matchRole =
+        roleFilter === "all" ||
+        user.companyMemberships.some((m) => m.role.id === roleFilter);
+
+      const matchGender = genderFilter === "all" || user.gender === genderFilter;
+
       const matchStatus =
         statusFilter === "all" ||
         (statusFilter === "active" && activeValue) ||
@@ -216,9 +248,7 @@ export function TeamMemberView({ users, roles }: TeamMemberViewProps) {
           <select
             value={genderFilter}
             onChange={(event) =>
-              setGenderFilter(
-                event.target.value as "all" | "male" | "female" | "other"
-              )
+              setGenderFilter(event.target.value as "all" | "male" | "female" | "other")
             }
             className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Filter gender"
@@ -232,9 +262,7 @@ export function TeamMemberView({ users, roles }: TeamMemberViewProps) {
           <select
             value={statusFilter}
             onChange={(event) =>
-              setStatusFilter(
-                event.target.value as "all" | "active" | "inactive"
-              )
+              setStatusFilter(event.target.value as "all" | "active" | "inactive")
             }
             className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Filter status"
@@ -313,7 +341,7 @@ export function TeamMemberView({ users, roles }: TeamMemberViewProps) {
             </TableHeader>
             <TableBody>
               {filteredUsers.map((user, index) => {
-                const roleName = user.role?.displayName || "Belum ada role";
+                const membership = user.companyMemberships[0];
                 const isActive = user.isActive ?? true;
 
                 return (
@@ -336,13 +364,13 @@ export function TeamMemberView({ users, roles }: TeamMemberViewProps) {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{user.phone || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.phone || "-"}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        {toGenderLabel(user.gender)}
-                      </Badge>
+                      <Badge variant="secondary">{toGenderLabel(user.gender)}</Badge>
                     </TableCell>
-                    <TableCell>{roleName}</TableCell>
+                    <TableCell>
+                      <RoleBadge membership={membership} />
+                    </TableCell>
                     <TableCell>
                       <Badge variant={isActive ? "default" : "outline"}>
                         {isActive ? "Aktif" : "Nonaktif"}
@@ -356,7 +384,7 @@ export function TeamMemberView({ users, roles }: TeamMemberViewProps) {
                         </Button>
                         <Button variant="destructive" size="sm">
                           <TrashIcon className="size-4" />
-                          Delete
+                          Hapus
                         </Button>
                       </div>
                     </TableCell>
@@ -369,7 +397,7 @@ export function TeamMemberView({ users, roles }: TeamMemberViewProps) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filteredUsers.map((user) => {
-            const roleName = user.role?.displayName || "Belum ada role";
+            const membership = user.companyMemberships[0];
             const isActive = user.isActive ?? true;
 
             return (
@@ -390,17 +418,13 @@ export function TeamMemberView({ users, roles }: TeamMemberViewProps) {
                   </div>
                   <div>
                     <CardTitle className="text-base">{user.fullName}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      @{user.username}
-                    </p>
+                    <p className="text-sm text-muted-foreground">@{user.username}</p>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3 pt-0">
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">
-                      {toGenderLabel(user.gender)}
-                    </Badge>
-                    <Badge variant="outline">{roleName}</Badge>
+                    <Badge variant="secondary">{toGenderLabel(user.gender)}</Badge>
+                    <RoleBadge membership={membership} />
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Telepon: {user.phone || "-"}
@@ -408,11 +432,11 @@ export function TeamMemberView({ users, roles }: TeamMemberViewProps) {
                   <div className="flex justify-end gap-2 pt-1">
                     <Button size="sm" variant="outline">
                       <EditIcon className="size-4" />
-                      Update
+                      Edit
                     </Button>
                     <Button size="sm" variant="destructive">
                       <TrashIcon className="size-4" />
-                      Delete
+                      Hapus
                     </Button>
                   </div>
                 </CardContent>

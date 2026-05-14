@@ -23,7 +23,6 @@ import {
 // ─── Roles ────────────────────────────────────────────────────────────────────
 
 export const rolesRelations = relations(roles, ({ many }) => ({
-  profiles: many(profiles),
   companyMembers: many(companyMembers),
 }));
 
@@ -52,11 +51,7 @@ export const companyMembersRelations = relations(companyMembers, ({ one }) => ({
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
 
-export const profilesRelations = relations(profiles, ({ one, many }) => ({
-  role: one(roles, {
-    fields: [profiles.roleId],
-    references: [roles.id],
-  }),
+export const profilesRelations = relations(profiles, ({ many }) => ({
   companyMemberships: many(companyMembers),
 }));
 
