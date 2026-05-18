@@ -10,6 +10,45 @@ Setiap pengguna terdaftar ke dalam sebuah **company** (bisnis). Seluruh data —
 
 ---
 
+## Alur 0A — Login & Pemilihan Company
+
+**Tujuan:** memastikan user masuk ke workspace company yang benar sebelum mengakses dashboard.
+
+**Halaman:**
+- Login: `/login`
+- Pilih company: `/select-company`
+- Tambah company baru: `/companies/new` (atau modal dari `/select-company`)
+
+Urutan setelah user berhasil login:
+
+1. Sistem memeriksa keanggotaan user di `company_members`.
+2. Sistem selalu mengarahkan user ke `/select-company` (model pemilihan ala Netflix: "siapa yang akan menonton?").
+3. Di halaman `/select-company`, user punya 2 aksi utama:
+   - **Pilih company yang sudah ada** (jika user sudah menjadi member).
+   - **Tambah company baru** (jika ingin membuat workspace baru).
+4. Jika user menambah company baru:
+   - Sistem membuat record company baru.
+   - User otomatis menjadi **Owner** pada company tersebut.
+   - Company baru langsung diset sebagai company aktif.
+5. Setelah user memilih atau membuat company:
+   - Sistem menyimpan `active_company_id`.
+   - Redirect ke dashboard (`/`) sesuai company aktif.
+
+### Ganti Company (Switch Workspace)
+
+1. User memilih menu **Ganti Company** dari navbar/sidebar.
+2. Sistem menampilkan daftar company yang user miliki.
+3. User memilih company lain.
+4. Sistem memperbarui company aktif dan me-refresh data dashboard sesuai company baru.
+
+### Guard Keamanan
+
+- Company aktif wajib diverifikasi sebagai membership user saat ini.
+- Jika company aktif tidak valid, sistem wajib mengarahkan ulang ke `/select-company`.
+- Semua query, server action, dan API wajib difilter berdasarkan company aktif (`company_id`) agar data antar company tetap terisolasi.
+
+---
+
 ## Alur 0 — Onboarding Company Baru
 
 Urutan saat pertama kali mendaftar:
