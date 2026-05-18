@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   categories as categoriesTable,
@@ -136,7 +136,7 @@ export async function getResepProduksiPageData(
         code: true,
         dimension: true,
       },
-      where: eq(units.companyId, companyId),
+      where: or(isNull(units.companyId), eq(units.companyId, companyId)),
       orderBy: (table) => [asc(table.code)],
     }),
     db.query.categories.findMany({
@@ -315,7 +315,7 @@ export async function getResepProduksiRecipeDetailData(recipeId: string) {
         code: true,
         dimension: true,
       },
-      where: eq(units.companyId, activeContext.companyId),
+      where: or(isNull(units.companyId), eq(units.companyId, activeContext.companyId)),
       orderBy: (table) => [asc(table.code)],
     }),
     db.query.profiles.findFirst({

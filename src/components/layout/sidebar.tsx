@@ -226,7 +226,7 @@ function SidebarNavigation({ sections }: { sections: NavSection[] }) {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ companyName }: { companyName: string }) {
   return (
     <SidebarRoot
       collapsible="icon"
@@ -249,7 +249,7 @@ export function Sidebar() {
                   <Building2 className="size-4.5 shrink-0" />
                 </div>
                 <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold tracking-tight">Revika Djaya</span>
+                  <span className="truncate font-semibold tracking-tight">{companyName}</span>
                   <span className="truncate text-xs text-sidebar-foreground/65">Admin Dashboard</span>
                 </div>
                 <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-500 group-data-[collapsible=icon]:hidden">

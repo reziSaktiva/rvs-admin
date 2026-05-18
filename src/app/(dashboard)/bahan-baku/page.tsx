@@ -30,7 +30,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, or } from "drizzle-orm";
 import { InventoryMovementForm } from "@/components/inventory/inventory-movement-form";
 import { db } from "@/lib/db";
 import { costItemInventoryMovements, units } from "@/lib/db/drizzle/schema";
@@ -83,7 +83,7 @@ export default async function BahanBakuPage({ searchParams }: BahanBakuPageProps
     getRawMaterialAssetSummary(activeContext.companyId),
     getInventoryMovementOptions(activeContext.companyId),
     db.query.units.findMany({
-      where: eq(units.companyId, activeContext.companyId),
+      where: or(isNull(units.companyId), eq(units.companyId, activeContext.companyId)),
       columns: {
         id: true,
         code: true,

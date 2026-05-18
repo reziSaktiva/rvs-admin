@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { units, unitConversions } from "@/lib/db/drizzle/schema";
 
@@ -39,12 +40,39 @@ const defaultConversions: DefaultConversion[] = [
 ];
 
 const seedDefaultUnits = async () => {
-  await db
-    .insert(units)
-    .values(defaultUnits)
-    .onConflictDoNothing({ target: units.code });
+  const globalCodes = defaultUnits.map((unit) => unit.code);
+  const existingGlobalUnits = await db.query.units.findMany({
+    where: and(isNull(units.companyId), inArray(units.code, globalCodes)),
+    columns: { id: true, code: true, name: true, dimension: true },
+  });
+
+  const existingGlobalByCode = new Map(existingGlobalUnits.map((unit) => [unit.code, unit]));
+  const missingGlobalUnits = defaultUnits
+    .filter((unit) => !existingGlobalByCode.has(unit.code))
+    .map((unit) => ({
+      companyId: null,
+      code: unit.code,
+      name: unit.name,
+      dimension: unit.dimension,
+    }));
+
+  if (missingGlobalUnits.length > 0) {
+    await db.insert(units).values(missingGlobalUnits);
+  }
+
+  for (const unit of defaultUnits) {
+    const existing = existingGlobalByCode.get(unit.code);
+    if (!existing) continue;
+    if (existing.name === unit.name && existing.dimension === unit.dimension) continue;
+
+    await db
+      .update(units)
+      .set({ name: unit.name, dimension: unit.dimension })
+      .where(and(eq(units.id, existing.id), isNull(units.companyId)));
+  }
 
   const seededUnits = await db.query.units.findMany({
+    where: and(isNull(units.companyId), inArray(units.code, globalCodes)),
     columns: { id: true, code: true },
   });
 
@@ -61,6 +89,7 @@ const seedDefaultUnits = async () => {
     }
 
     return {
+      companyId: null,
       fromUnitId,
       toUnitId,
       multiplier: conversion.multiplier,
