@@ -1,9 +1,16 @@
+import { redirect } from "next/navigation";
 import { getUsers } from "@/lib/users";
 import { getRoles } from "@/lib/roles";
 import { TeamMemberView } from "@/components/team/team-member-view";
+import { getCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
 
 export default async function TeamPage() {
-  const usersResult = await getUsers();
+  const activeContext = await getCurrentUserActiveCompanyContext();
+  if (!activeContext) {
+    redirect("/select-company");
+  }
+
+  const usersResult = await getUsers(activeContext.companyId);
   const roles = await getRoles();
   const users = usersResult.data ?? [];
 

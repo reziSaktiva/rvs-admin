@@ -133,6 +133,9 @@ export default function LoginPage() {
           <Button asChild variant="ghost" className="w-full" size="sm">
             <Link href="/reset-password">Lupa password?</Link>
           </Button>
+          <Button asChild variant="ghost" className="w-full" size="sm">
+            <Link href="/register">Belum punya akun? Daftar</Link>
+          </Button>
         </CardFooter>
       </form>
     </Card>

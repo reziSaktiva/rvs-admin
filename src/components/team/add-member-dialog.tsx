@@ -27,7 +27,7 @@ type Props = {
   roles: Role[];
 };
 
-export function AddMemberDialog({ roles: _roles }: Props) {
+export function AddMemberDialog({ roles }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,6 +46,7 @@ export function AddMemberDialog({ roles: _roles }: Props) {
       password: formData.get("password") as string,
       phone: formData.get("phone") as string,
       gender: formData.get("gender") as "male" | "female" | "other",
+      roleId: formData.get("roleId") as string,
     });
 
     setLoading(false);
@@ -144,6 +145,23 @@ export function AddMemberDialog({ roles: _roles }: Props) {
                 <option value="other">Lainnya</option>
               </select>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="roleId">Role di company aktif</Label>
+            <select
+              id="roleId"
+              name="roleId"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              required
+              defaultValue={roles[0]?.id ?? ""}
+            >
+              {roles.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.displayName}
+                </option>
+              ))}
+            </select>
           </div>
 
           {error && (

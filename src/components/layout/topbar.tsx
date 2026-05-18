@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Bell, LogOut, Search } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,10 @@ export function Topbar() {
 
         {/* Theme Toggle */}
         <ThemeToggle />
+
+        <Button asChild variant="outline" size="sm" className="hidden md:inline-flex">
+          <Link href="/select-company">Ganti company</Link>
+        </Button>
 
         {/* User Avatar */}
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
