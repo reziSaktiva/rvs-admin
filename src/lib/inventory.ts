@@ -5,6 +5,7 @@ import {
   costItemInventoryMovements,
   costItemPrices,
   costItems,
+  unitConversions,
 } from "./db/drizzle/schema";
 
 type UnitSummary = {
@@ -61,6 +62,7 @@ export type StockMovementType =
   | "transfer_out";
 
 export type RecordInventoryMovementInput = {
+  companyId: string;
   itemId: string;
   movementType: StockMovementType;
   qtyDelta: number;
@@ -92,6 +94,7 @@ export type RecordInventoryMovementResult = {
 };
 
 export type InventoryMovementHistoryFilters = {
+  companyId: string;
   itemId?: string;
   movementType?: StockMovementType;
   referenceKeyword?: string;
@@ -192,9 +195,12 @@ const findConversionFactor = (
   return null;
 };
 
-export const getRawMaterialAssetSummary = async (): Promise<RawMaterialAssetSummary> => {
+export const getRawMaterialAssetSummary = async (
+  companyId: string
+): Promise<RawMaterialAssetSummary> => {
   const [balances, prices] = await Promise.all([
     db.query.costItemInventoryBalances.findMany({
+      where: eq(costItemInventoryBalances.companyId, companyId),
       with: {
         item: {
           columns: {
@@ -216,6 +222,7 @@ export const getRawMaterialAssetSummary = async (): Promise<RawMaterialAssetSumm
       orderBy: (table, { desc: descOrder }) => [descOrder(table.updatedAt)],
     }),
     db.query.costItemPrices.findMany({
+      where: eq(costItemPrices.companyId, companyId),
       columns: {
         itemId: true,
         pricePerUnit: true,
@@ -260,10 +267,13 @@ export const getRawMaterialAssetSummary = async (): Promise<RawMaterialAssetSumm
   return { totalAssetValue, items };
 };
 
-export const getInventoryMovementOptions = async (): Promise<InventoryMovementOptions> => {
+export const getInventoryMovementOptions = async (
+  companyId: string
+): Promise<InventoryMovementOptions> => {
   const [items, balances] = await Promise.all([
     db.query.costItems.findMany({
       where: and(
+        eq(costItems.companyId, companyId),
         eq(costItems.isActive, true),
         inArray(costItems.itemType, ["raw_material", "packaging"])
       ),
@@ -280,6 +290,7 @@ export const getInventoryMovementOptions = async (): Promise<InventoryMovementOp
       orderBy: (table) => [asc(table.name)],
     }),
     db.query.costItemInventoryBalances.findMany({
+      where: eq(costItemInventoryBalances.companyId, companyId),
       with: {
         unit: {
           columns: {
@@ -329,9 +340,10 @@ export const getInventoryMovementOptions = async (): Promise<InventoryMovementOp
 };
 
 export const getInventoryMovementHistory = async (
-  filters: InventoryMovementHistoryFilters = {}
+  filters: InventoryMovementHistoryFilters
 ): Promise<InventoryMovementHistoryItem[]> => {
   const whereClauses: SQL[] = [];
+  whereClauses.push(eq(costItemInventoryMovements.companyId, filters.companyId));
 
   if (filters.itemId) {
     whereClauses.push(eq(costItemInventoryMovements.itemId, filters.itemId));
@@ -414,7 +426,11 @@ export const recordInventoryMovement = async (
 
   return db.transaction(async (tx) => {
     const item = await tx.query.costItems.findFirst({
-      where: and(eq(costItems.id, input.itemId), eq(costItems.isActive, true)),
+      where: and(
+        eq(costItems.id, input.itemId),
+        eq(costItems.companyId, input.companyId),
+        eq(costItems.isActive, true)
+      ),
       columns: {
         id: true,
         defaultUnitId: true,
@@ -426,16 +442,23 @@ export const recordInventoryMovement = async (
     }
 
     const currentBalance = await tx.query.costItemInventoryBalances.findFirst({
-      where: eq(costItemInventoryBalances.itemId, input.itemId),
+      where: and(
+        eq(costItemInventoryBalances.companyId, input.companyId),
+        eq(costItemInventoryBalances.itemId, input.itemId)
+      ),
     });
 
     const balanceUnitId = currentBalance?.unitId ?? item.defaultUnitId;
     const [conversions, latestPrice] = await Promise.all([
       tx.query.unitConversions.findMany({
+        where: eq(unitConversions.companyId, input.companyId),
         columns: { fromUnitId: true, toUnitId: true, multiplier: true },
       }),
       tx.query.costItemPrices.findFirst({
-        where: eq(costItemPrices.itemId, input.itemId),
+        where: and(
+          eq(costItemPrices.companyId, input.companyId),
+          eq(costItemPrices.itemId, input.itemId)
+        ),
         orderBy: (table, { desc: descOrder }) => [
           descOrder(table.effectiveFrom),
           descOrder(table.createdAt),
@@ -497,6 +520,7 @@ export const recordInventoryMovement = async (
     await tx
       .insert(costItemInventoryBalances)
       .values({
+        companyId: input.companyId,
         itemId: input.itemId,
         qtyOnHand: String(newQtyOnHand),
         unitId: balanceUnitId,
@@ -507,6 +531,7 @@ export const recordInventoryMovement = async (
       .onConflictDoUpdate({
         target: [costItemInventoryBalances.itemId],
         set: {
+          companyId: input.companyId,
           qtyOnHand: String(newQtyOnHand),
           unitId: balanceUnitId,
           avgCostPerUnit: String(newAvgCostPerUnit),
@@ -518,6 +543,7 @@ export const recordInventoryMovement = async (
     const movementRows = await tx
       .insert(costItemInventoryMovements)
       .values({
+        companyId: input.companyId,
         itemId: input.itemId,
         movementType: input.movementType,
         qtyDelta: String(qtyDelta),

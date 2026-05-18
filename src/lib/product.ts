@@ -1,4 +1,6 @@
 import { db } from "./db";
+import { eq } from "drizzle-orm";
+import { product } from "./db/drizzle/schema";
 
 export type ProductListItem = {
   id: string;
@@ -15,8 +17,9 @@ export type ProductListItem = {
   tags: string[];
 };
 
-export const getProducts = async () => {
+export const getProducts = async (companyId: string) => {
   const products = await db.query.product.findMany({
+    where: eq(product.companyId, companyId),
     limit: 10,
     offset: 0,
     with: {

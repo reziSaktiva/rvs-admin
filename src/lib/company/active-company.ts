@@ -1,7 +1,7 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
-import { companyMembers, companies } from "@/lib/db/drizzle/schema";
+import { companyMembers, companies, profiles } from "@/lib/db/drizzle/schema";
 import { createClient } from "@/lib/supabase/server";
 
 export const ACTIVE_COMPANY_COOKIE_NAME = "active_company_id";
@@ -129,6 +129,14 @@ export const getCurrentUserActiveCompanyContext = async () => {
   };
 };
 
+export const requireCurrentUserActiveCompanyContext = async () => {
+  const context = await getCurrentUserActiveCompanyContext();
+  if (!context) {
+    throw new Error("Company aktif tidak ditemukan. Silakan pilih company terlebih dahulu.");
+  }
+  return context;
+};
+
 export const getRoleByTitle = async (title: string) => {
   const normalized = title.trim().toLowerCase();
   if (!normalized) return null;
@@ -240,11 +248,53 @@ export const generateUniqueCompanySlug = async (companyName: string) => {
 export const createCompanyAndAssignOwner = async (params: {
   profileId: string;
   companyName: string;
+  email?: string | null;
+  userMetadata?: Record<string, unknown> | null;
 }) => {
   const ownerRole = await ensureOwnerRole();
+  const now = new Date().toISOString();
+
+  const existingProfile = await db.query.profiles.findFirst({
+    where: eq(profiles.id, params.profileId),
+    columns: {
+      id: true,
+    },
+  });
+
+  if (!existingProfile) {
+    const metadata = params.userMetadata ?? {};
+    const emailPrefix = (params.email ?? "").split("@")[0]?.trim() ?? "";
+    const usernameFromMetadata = String(metadata.username ?? "").trim();
+    const fullNameFromMetadata = String(
+      metadata.full_name ?? metadata.fullName ?? ""
+    ).trim();
+    const genderFromMetadata = String(metadata.gender ?? "").toLowerCase().trim();
+    const fallbackUsername = emailPrefix || `user-${params.profileId.slice(0, 8)}`;
+    const fallbackFullName = fullNameFromMetadata || usernameFromMetadata || fallbackUsername;
+    const safeGender =
+      genderFromMetadata === "male" || genderFromMetadata === "female" || genderFromMetadata === "other"
+        ? genderFromMetadata
+        : "other";
+
+    await db
+      .insert(profiles)
+      .values({
+        id: params.profileId,
+        username: usernameFromMetadata || fallbackUsername,
+        fullName: fallbackFullName,
+        phone: String(metadata.phone ?? "").trim() || null,
+        gender: safeGender,
+        photoUrl: String(metadata.avatar_url ?? metadata.photo_url ?? "").trim() || null,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing({
+        target: [profiles.id],
+      });
+  }
 
   const slug = await generateUniqueCompanySlug(params.companyName);
-  const now = new Date().toISOString();
 
   return db.transaction(async (tx) => {
     const [createdCompany] = await tx

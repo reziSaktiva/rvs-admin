@@ -36,6 +36,8 @@ import {
 import { PurchaseMaterialForm } from "@/components/inventory/purchase-material-form";
 import { getInventoryMovementHistory, getInventoryMovementOptions } from "@/lib/inventory";
 import { Banknote, ClipboardList, Package, Plus, Warehouse } from "lucide-react";
+import { getCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
+import { redirect } from "next/navigation";
 
 type PembelianPageProps = {
   searchParams?: Promise<{
@@ -67,6 +69,9 @@ const buildQueryString = (params: Record<string, string | undefined>) => {
 };
 
 export default async function PembelianPage({ searchParams }: PembelianPageProps) {
+  const activeContext = await getCurrentUserActiveCompanyContext();
+  if (!activeContext) redirect("/select-company");
+
   const params = (await searchParams) ?? {};
   const selectedItemId = params.itemId && params.itemId !== "all" ? params.itemId : undefined;
   const parsedPage = Number(params.page ?? "1");
@@ -76,8 +81,9 @@ export default async function PembelianPage({ searchParams }: PembelianPageProps
   const offset = (page - 1) * pageSize;
 
   const [movementOptions, rows] = await Promise.all([
-    getInventoryMovementOptions(),
+    getInventoryMovementOptions(activeContext.companyId),
     getInventoryMovementHistory({
+      companyId: activeContext.companyId,
       movementType: "purchase",
       itemId: selectedItemId,
       referenceKeyword: params.referenceKeyword || undefined,

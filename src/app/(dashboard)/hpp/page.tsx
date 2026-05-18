@@ -1,9 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HppCalculator } from "@/components/hpp/hpp-calculator";
 import { getHppRecipeOptions } from "@/lib/hpp";
+import { getCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
+import { redirect } from "next/navigation";
 
 export default async function HppPage() {
-  const recipes = await getHppRecipeOptions();
+  const activeContext = await getCurrentUserActiveCompanyContext();
+  if (!activeContext) redirect("/select-company");
+
+  const recipes = await getHppRecipeOptions(activeContext.companyId);
 
   return (
     <div className="space-y-4">

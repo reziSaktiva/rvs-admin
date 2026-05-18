@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { postProductionRun } from "@/lib/production";
+import { requireCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
 
 export async function POST(request: Request) {
   try {
+    const activeContext = await requireCurrentUserActiveCompanyContext();
     const body = (await request.json()) as {
       recipeId?: string;
       batchCount?: number;
@@ -22,6 +24,7 @@ export async function POST(request: Request) {
     }
 
     const result = await postProductionRun({
+      companyId: activeContext.companyId,
       recipeId,
       batchCount,
       note: body.note,

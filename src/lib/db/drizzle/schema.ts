@@ -155,6 +155,7 @@ export const categories = pgTable(
   "categories",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
+    companyId: uuid("company_id"),
     name: text("name").notNull(),
     slug: text("slug"),
     createdAt: timestamp("created_at", {
@@ -163,8 +164,13 @@ export const categories = pgTable(
     }).defaultNow(),
   },
   (table) => [
-    unique("categories_name_key").on(table.name),
-    unique("categories_slug_key").on(table.slug),
+    unique("categories_company_name_key").on(table.companyId, table.name),
+    unique("categories_company_slug_key").on(table.companyId, table.slug),
+    foreignKey({
+      name: "categories_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
   ]
 );
 
@@ -172,13 +178,21 @@ export const keywords = pgTable(
   "keywords",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
+    companyId: uuid("company_id"),
     name: text("name").notNull(),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
     }).defaultNow(),
   },
-  (table) => [unique("tags_name_key").on(table.name)]
+  (table) => [
+    unique("tags_company_name_key").on(table.companyId, table.name),
+    foreignKey({
+      name: "keywords_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
+  ]
 );
 
 // ─── Products ─────────────────────────────────────────────────────────────────
@@ -187,6 +201,7 @@ export const product = pgTable(
   "products",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
+    companyId: uuid("company_id"),
     name: text("name").notNull(),
     description: text("description"),
     imageUrl: text("image_url"),
@@ -203,6 +218,11 @@ export const product = pgTable(
   },
   (table) => [
     foreignKey({
+      name: "products_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
+    foreignKey({
       name: "products_category_id_fkey",
       columns: [table.categoryId],
       foreignColumns: [categories.id],
@@ -214,6 +234,7 @@ export const productVariant = pgTable(
   "product_variants",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
+    companyId: uuid("company_id"),
     productId: uuid("product_id").notNull(),
     size: text("size"),
     sku: text("sku"),
@@ -234,6 +255,11 @@ export const productVariant = pgTable(
     unique("product_variants_barcode_key").on(table.barcode),
     unique("product_variants_sku_key").on(table.sku),
     foreignKey({
+      name: "product_variants_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
+    foreignKey({
       name: "product_variants_product_id_fkey",
       columns: [table.productId],
       foreignColumns: [product.id],
@@ -244,10 +270,16 @@ export const productVariant = pgTable(
 export const productKeywords = pgTable(
   "product_keywords",
   {
+    companyId: uuid("company_id"),
     productId: uuid("product_id").notNull(),
     tagId: uuid("tag_id").notNull(),
   },
   (table) => [
+    foreignKey({
+      name: "product_tags_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
     primaryKey({ columns: [table.productId, table.tagId], name: "product_tags_pkey" }),
     foreignKey({
       name: "product_tags_product_id_fkey",
@@ -268,6 +300,7 @@ export const units = pgTable(
   "units",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
+    companyId: uuid("company_id"),
     code: text("code").notNull(),
     name: text("name").notNull(),
     dimension: text("dimension").notNull(), // count, weight, length, volume, etc.
@@ -277,14 +310,20 @@ export const units = pgTable(
     }).defaultNow(),
   },
   (table) => [
-    unique("units_code_key").on(table.code),
-    unique("units_name_key").on(table.name),
+    unique("units_company_code_key").on(table.companyId, table.code),
+    unique("units_company_name_key").on(table.companyId, table.name),
+    foreignKey({
+      name: "units_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
   ]
 );
 
 export const unitConversions = pgTable(
   "unit_conversions",
   {
+    companyId: uuid("company_id"),
     fromUnitId: uuid("from_unit_id").notNull(),
     toUnitId: uuid("to_unit_id").notNull(),
     multiplier: integer("multiplier").notNull(),
@@ -294,6 +333,11 @@ export const unitConversions = pgTable(
     }).defaultNow(),
   },
   (table) => [
+    foreignKey({
+      name: "unit_conversions_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
     primaryKey({
       columns: [table.fromUnitId, table.toUnitId],
       name: "unit_conversions_pkey",
@@ -315,6 +359,7 @@ export const costItems = pgTable(
   "cost_items",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
+    companyId: uuid("company_id"),
     name: text("name").notNull(),
     sku: text("sku"),
     itemType: itemType("item_type").default("raw_material").notNull(),
@@ -330,8 +375,13 @@ export const costItems = pgTable(
     }).defaultNow(),
   },
   (table) => [
-    unique("cost_items_name_key").on(table.name),
-    unique("cost_items_sku_key").on(table.sku),
+    unique("cost_items_company_name_key").on(table.companyId, table.name),
+    unique("cost_items_company_sku_key").on(table.companyId, table.sku),
+    foreignKey({
+      name: "cost_items_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
     foreignKey({
       name: "cost_items_default_unit_id_fkey",
       columns: [table.defaultUnitId],
@@ -344,6 +394,7 @@ export const costItemPrices = pgTable(
   "cost_item_prices",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
+    companyId: uuid("company_id"),
     itemId: uuid("item_id").notNull(),
     unitId: uuid("unit_id").notNull(),
     pricePerUnit: numeric("price_per_unit", { precision: 14, scale: 4 }).notNull(),
@@ -358,6 +409,11 @@ export const costItemPrices = pgTable(
     }).defaultNow(),
   },
   (table) => [
+    foreignKey({
+      name: "cost_item_prices_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
     foreignKey({
       name: "cost_item_prices_item_id_fkey",
       columns: [table.itemId],
@@ -375,6 +431,7 @@ export const recipes = pgTable(
   "recipes",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
+    companyId: uuid("company_id"),
     productVariantId: uuid("product_variant_id").notNull(),
     name: text("name").notNull(),
     outputQty: numeric("output_qty", { precision: 14, scale: 4 }).notNull().default("1"),
@@ -392,6 +449,11 @@ export const recipes = pgTable(
     }).defaultNow(),
   },
   (table) => [
+    foreignKey({
+      name: "recipes_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
     unique("recipes_product_variant_id_name_key").on(table.productVariantId, table.name),
     foreignKey({
       name: "recipes_product_variant_id_fkey",
@@ -410,6 +472,7 @@ export const recipeMaterials = pgTable(
   "recipe_materials",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
+    companyId: uuid("company_id"),
     recipeId: uuid("recipe_id").notNull(),
     itemId: uuid("item_id").notNull(),
     qty: numeric("qty", { precision: 14, scale: 4 }).notNull(),
@@ -423,6 +486,11 @@ export const recipeMaterials = pgTable(
     }).defaultNow(),
   },
   (table) => [
+    foreignKey({
+      name: "recipe_materials_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
     foreignKey({
       name: "recipe_materials_recipe_id_fkey",
       columns: [table.recipeId],
@@ -445,6 +513,7 @@ export const recipeCosts = pgTable(
   "recipe_costs",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
+    companyId: uuid("company_id"),
     recipeId: uuid("recipe_id").notNull(),
     name: text("name").notNull(),
     componentType: costComponentType("component_type").default("overhead").notNull(),
@@ -456,6 +525,11 @@ export const recipeCosts = pgTable(
     }).defaultNow(),
   },
   (table) => [
+    foreignKey({
+      name: "recipe_costs_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
     foreignKey({
       name: "recipe_costs_recipe_id_fkey",
       columns: [table.recipeId],
@@ -469,6 +543,7 @@ export const recipeCosts = pgTable(
 export const costItemInventoryBalances = pgTable(
   "cost_item_inventory_balances",
   {
+    companyId: uuid("company_id"),
     itemId: uuid("item_id").primaryKey().notNull(),
     qtyOnHand: numeric("qty_on_hand", { precision: 18, scale: 4 }).notNull().default("0"),
     unitId: uuid("unit_id").notNull(),
@@ -482,6 +557,11 @@ export const costItemInventoryBalances = pgTable(
     }).defaultNow(),
   },
   (table) => [
+    foreignKey({
+      name: "cost_item_inventory_balances_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
     foreignKey({
       name: "cost_item_inventory_balances_item_id_fkey",
       columns: [table.itemId],
@@ -499,6 +579,7 @@ export const costItemInventoryMovements = pgTable(
   "cost_item_inventory_movements",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
+    companyId: uuid("company_id"),
     itemId: uuid("item_id").notNull(),
     movementType: stockMovementType("movement_type").notNull(),
     qtyDelta: numeric("qty_delta", { precision: 18, scale: 4 }).notNull(),
@@ -518,6 +599,11 @@ export const costItemInventoryMovements = pgTable(
     }).defaultNow(),
   },
   (table) => [
+    foreignKey({
+      name: "cost_item_inventory_movements_company_id_fkey",
+      columns: [table.companyId],
+      foreignColumns: [companies.id],
+    }).onDelete("cascade"),
     foreignKey({
       name: "cost_item_inventory_movements_item_id_fkey",
       columns: [table.itemId],

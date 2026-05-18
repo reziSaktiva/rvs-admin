@@ -1,6 +1,11 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./db";
-import { recipes, unitConversions } from "./db/drizzle/schema";
+import {
+  costItemInventoryBalances,
+  costItemPrices,
+  recipes,
+  unitConversions,
+} from "./db/drizzle/schema";
 
 type UnitSummary = {
   id: string;
@@ -143,10 +148,10 @@ const findConversionFactor = (
   return null;
 };
 
-export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult> => {
+export const calculateHpp = async (companyId: string, recipeId: string): Promise<CalculateHppResult> => {
   const [recipe, conversions] = await Promise.all([
     db.query.recipes.findFirst({
-      where: eq(recipes.id, recipeId),
+      where: and(eq(recipes.id, recipeId), eq(recipes.companyId, companyId)),
       with: {
         productVariant: {
           columns: {
@@ -180,6 +185,7 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
               },
               with: {
                 prices: {
+                  where: eq(costItemPrices.companyId, companyId),
                   orderBy: (table, { desc: descOrder }) => [
                     descOrder(table.effectiveFrom),
                     descOrder(table.createdAt),
@@ -205,6 +211,7 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
       },
     }),
     db.query.unitConversions.findMany({
+      where: eq(unitConversions.companyId, companyId),
       orderBy: desc(unitConversions.createdAt),
       columns: {
         fromUnitId: true,
@@ -223,7 +230,10 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
     materialItemIds.length === 0
       ? []
       : await db.query.costItemInventoryBalances.findMany({
-        where: (table) => inArray(table.itemId, materialItemIds),
+        where: and(
+          eq(costItemInventoryBalances.companyId, companyId),
+          inArray(costItemInventoryBalances.itemId, materialItemIds)
+        ),
         columns: {
           itemId: true,
           avgCostPerUnit: true,
@@ -432,8 +442,9 @@ export const calculateHpp = async (recipeId: string): Promise<CalculateHppResult
   };
 };
 
-export const getHppRecipeOptions = async (): Promise<HppRecipeOption[]> => {
+export const getHppRecipeOptions = async (companyId: string): Promise<HppRecipeOption[]> => {
   const rows = await db.query.recipes.findMany({
+    where: eq(recipes.companyId, companyId),
     with: {
       productVariant: {
         columns: {

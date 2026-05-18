@@ -1,7 +1,12 @@
 import { asc, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { calculateHpp } from "./hpp";
-import { costItems } from "./db/drizzle/schema";
+import {
+  costItemInventoryBalances,
+  costItemPrices,
+  costItems,
+  productVariant,
+} from "./db/drizzle/schema";
 
 type TopAssetItem = {
   itemId: string;
@@ -48,8 +53,11 @@ const toNumber = (value: string | number | null | undefined, fallback = 0): numb
   return fallback;
 };
 
-export const getDashboardAnalyticsSummary = async (): Promise<DashboardAnalyticsSummary> => {
+export const getDashboardAnalyticsSummary = async (
+  companyId: string
+): Promise<DashboardAnalyticsSummary> => {
   const topAssetRows = await db.query.costItemInventoryBalances.findMany({
+    where: inArray(costItemInventoryBalances.companyId, [companyId]),
     with: {
       item: {
         columns: {
@@ -83,13 +91,18 @@ export const getDashboardAnalyticsSummary = async (): Promise<DashboardAnalytics
     .slice(0, 5);
 
   const materialItems = await db.query.costItems.findMany({
-    where: inArray(costItems.itemType, ["raw_material", "packaging"]),
+    where: (table, { and }) =>
+      and(
+        inArray(costItems.companyId, [companyId]),
+        inArray(costItems.itemType, ["raw_material", "packaging"])
+      ),
     columns: {
       id: true,
       name: true,
     },
     with: {
       prices: {
+        where: inArray(costItemPrices.companyId, [companyId]),
         orderBy: (table, { desc: descOrder }) => [
           descOrder(table.effectiveFrom),
           descOrder(table.createdAt),
@@ -133,6 +146,7 @@ export const getDashboardAnalyticsSummary = async (): Promise<DashboardAnalytics
     .slice(0, 5);
 
   const variants = await db.query.productVariant.findMany({
+    where: inArray(productVariant.companyId, [companyId]),
     columns: {
       id: true,
       sku: true,
@@ -165,7 +179,7 @@ export const getDashboardAnalyticsSummary = async (): Promise<DashboardAnalytics
     if (!selectedRecipe) continue;
 
     try {
-      const hpp = await calculateHpp(selectedRecipe.id);
+      const hpp = await calculateHpp(companyId, selectedRecipe.id);
       const sellingPrice = toNumber(variant.price, 0);
       if (sellingPrice <= 0) continue;
 

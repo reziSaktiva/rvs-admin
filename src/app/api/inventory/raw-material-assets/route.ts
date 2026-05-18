@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { getRawMaterialAssetSummary } from "@/lib/inventory";
+import { requireCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
 
 export async function GET() {
   try {
-    const result = await getRawMaterialAssetSummary();
+    const activeContext = await requireCurrentUserActiveCompanyContext();
+    const result = await getRawMaterialAssetSummary(activeContext.companyId);
     return NextResponse.json({ success: true, data: result });
   } catch (error) {
     return NextResponse.json(

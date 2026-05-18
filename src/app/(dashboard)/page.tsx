@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { getRawMaterialAssetSummary } from "@/lib/inventory";
 import { getDashboardAnalyticsSummary } from "@/lib/dashboard-analytics";
 import type { Metadata } from "next";
+import { getCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -24,9 +26,12 @@ const formatCurrency = (value: number) =>
   });
 
 export default async function DashboardPage() {
+  const activeContext = await getCurrentUserActiveCompanyContext();
+  if (!activeContext) redirect("/select-company");
+
   const [assetSummary, analytics] = await Promise.all([
-    getRawMaterialAssetSummary(),
-    getDashboardAnalyticsSummary(),
+    getRawMaterialAssetSummary(activeContext.companyId),
+    getDashboardAnalyticsSummary(activeContext.companyId),
   ]);
 
   return (

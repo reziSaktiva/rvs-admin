@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
@@ -11,6 +11,7 @@ import {
   recipeMaterials,
   recipes,
 } from "@/lib/db/drizzle/schema";
+import { requireCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
 
 const parseNumber = (value: FormDataEntryValue | null): number => {
   if (typeof value !== "string") return NaN;
@@ -111,10 +112,21 @@ const validateRecipeCore = (formData: FormData) => {
 };
 
 export async function createRecipeWithExistingVariantAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const productVariantId = String(formData.get("productVariantId") ?? "").trim();
   const status = String(formData.get("status") ?? "").trim() || undefined;
 
   if (!productVariantId) {
+    redirect(routeToError("varian_wajib", undefined, status));
+  }
+  const variant = await db.query.productVariant.findFirst({
+    where: and(
+      eq(productVariant.id, productVariantId),
+      eq(productVariant.companyId, activeContext.companyId)
+    ),
+    columns: { id: true },
+  });
+  if (!variant) {
     redirect(routeToError("varian_wajib", undefined, status));
   }
 
@@ -130,6 +142,7 @@ export async function createRecipeWithExistingVariantAction(formData: FormData) 
     const [inserted] = await db
       .insert(recipes)
       .values({
+        companyId: activeContext.companyId,
         productVariantId,
         ...recipeCore!,
         status: "draft",
@@ -153,9 +166,17 @@ export async function createRecipeWithExistingVariantAction(formData: FormData) 
 }
 
 export async function createVariantAndRecipeForExistingProductAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const productId = String(formData.get("productId") ?? "").trim();
   const status = String(formData.get("status") ?? "").trim() || undefined;
   if (!productId) {
+    redirect(routeToError("produk_wajib", undefined, status));
+  }
+  const targetProduct = await db.query.product.findFirst({
+    where: and(eq(product.id, productId), eq(product.companyId, activeContext.companyId)),
+    columns: { id: true },
+  });
+  if (!targetProduct) {
     redirect(routeToError("produk_wajib", undefined, status));
   }
 
@@ -183,6 +204,7 @@ export async function createVariantAndRecipeForExistingProductAction(formData: F
       const [newVariant] = await tx
         .insert(productVariant)
         .values({
+          companyId: activeContext.companyId,
           productId,
           size,
           sku,
@@ -199,6 +221,7 @@ export async function createVariantAndRecipeForExistingProductAction(formData: F
       const [newRecipe] = await tx
         .insert(recipes)
         .values({
+          companyId: activeContext.companyId,
           productVariantId: newVariant.id,
           ...recipeCore!,
           status: "draft",
@@ -229,6 +252,7 @@ export async function createVariantAndRecipeForExistingProductAction(formData: F
 }
 
 export async function createProductVariantAndRecipeAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const status = String(formData.get("status") ?? "").trim() || undefined;
   const productName = String(formData.get("productName") ?? "").trim();
   const productDescription = toNullableString(formData.get("productDescription"));
@@ -263,6 +287,7 @@ export async function createProductVariantAndRecipeAction(formData: FormData) {
       const [newProduct] = await tx
         .insert(product)
         .values({
+          companyId: activeContext.companyId,
           name: productName,
           description: productDescription,
           categoryId,
@@ -276,6 +301,7 @@ export async function createProductVariantAndRecipeAction(formData: FormData) {
       const [newVariant] = await tx
         .insert(productVariant)
         .values({
+          companyId: activeContext.companyId,
           productId: newProduct.id,
           size,
           sku,
@@ -292,6 +318,7 @@ export async function createProductVariantAndRecipeAction(formData: FormData) {
       const [newRecipe] = await tx
         .insert(recipes)
         .values({
+          companyId: activeContext.companyId,
           productVariantId: newVariant.id,
           ...recipeCore!,
           status: "draft",
@@ -322,6 +349,7 @@ export async function createProductVariantAndRecipeAction(formData: FormData) {
 }
 
 export async function updateProductAndVariantAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const recipeId = String(formData.get("recipeId") ?? "").trim();
   const productId = String(formData.get("productId") ?? "").trim();
   const variantId = String(formData.get("variantId") ?? "").trim();
@@ -362,7 +390,7 @@ export async function updateProductAndVariantAction(formData: FormData) {
           isActive: productIsActive,
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(product.id, productId));
+        .where(and(eq(product.id, productId), eq(product.companyId, activeContext.companyId)));
 
       await tx
         .update(productVariant)
@@ -375,7 +403,12 @@ export async function updateProductAndVariantAction(formData: FormData) {
           isActive: variantIsActive,
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(productVariant.id, variantId));
+        .where(
+          and(
+            eq(productVariant.id, variantId),
+            eq(productVariant.companyId, activeContext.companyId)
+          )
+        );
     });
   } catch (error) {
     if (
@@ -396,6 +429,7 @@ export async function updateProductAndVariantAction(formData: FormData) {
 }
 
 export async function updateRecipeStatusAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const recipeId = String(formData.get("recipeId") ?? "").trim();
   const status = String(formData.get("status") ?? "").trim();
   const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
@@ -410,7 +444,7 @@ export async function updateRecipeStatusAction(formData: FormData) {
       status: status as "draft" | "active" | "archived",
       updatedAt: new Date().toISOString(),
     })
-    .where(eq(recipes.id, recipeId));
+    .where(and(eq(recipes.id, recipeId), eq(recipes.companyId, activeContext.companyId)));
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
@@ -420,6 +454,7 @@ export async function updateRecipeStatusAction(formData: FormData) {
 }
 
 export async function updateRecipeCoreAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const recipeId = String(formData.get("recipeId") ?? "").trim();
   const statusFilter = String(formData.get("statusFilter") ?? "").trim() || undefined;
   const status = String(formData.get("status") ?? "").trim();
@@ -449,7 +484,7 @@ export async function updateRecipeCoreAction(formData: FormData) {
         status: status as "draft" | "active" | "archived",
         updatedAt: new Date().toISOString(),
       })
-      .where(eq(recipes.id, recipeId));
+      .where(and(eq(recipes.id, recipeId), eq(recipes.companyId, activeContext.companyId)));
   } catch (error) {
     if (isUniqueViolation(error, "recipes_product_variant_id_name_key")) {
       redirect(routeToErrorOrFallback("nama_resep_duplikat", recipeId, statusFilter, redirectTo));
@@ -466,6 +501,7 @@ export async function updateRecipeCoreAction(formData: FormData) {
 }
 
 export async function addRecipeMaterialAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const recipeId = String(formData.get("recipeId") ?? "").trim();
   const itemId = String(formData.get("itemId") ?? "").trim();
   const unitId = String(formData.get("unitId") ?? "").trim();
@@ -485,6 +521,7 @@ export async function addRecipeMaterialAction(formData: FormData) {
   }
 
   await db.insert(recipeMaterials).values({
+    companyId: activeContext.companyId,
     recipeId,
     itemId,
     unitId,
@@ -502,6 +539,7 @@ export async function addRecipeMaterialAction(formData: FormData) {
 }
 
 export async function updateRecipeMaterialAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const materialId = String(formData.get("materialId") ?? "").trim();
   const qty = parseNumber(formData.get("qty"));
   const wastePercent = parseNumber(formData.get("wastePercent"));
@@ -526,7 +564,7 @@ export async function updateRecipeMaterialAction(formData: FormData) {
       sortOrder: Number.isFinite(sortOrder) ? Math.trunc(sortOrder) : 0,
       isOptional,
     })
-    .where(eq(recipeMaterials.id, materialId));
+    .where(and(eq(recipeMaterials.id, materialId), eq(recipeMaterials.companyId, activeContext.companyId)));
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
@@ -536,6 +574,7 @@ export async function updateRecipeMaterialAction(formData: FormData) {
 }
 
 export async function deleteRecipeMaterialAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const materialId = String(formData.get("materialId") ?? "").trim();
   const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
   if (!materialId) {
@@ -543,7 +582,9 @@ export async function deleteRecipeMaterialAction(formData: FormData) {
     throw new Error("materialId is required");
   }
 
-  await db.delete(recipeMaterials).where(eq(recipeMaterials.id, materialId));
+  await db
+    .delete(recipeMaterials)
+    .where(and(eq(recipeMaterials.id, materialId), eq(recipeMaterials.companyId, activeContext.companyId)));
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
@@ -553,6 +594,7 @@ export async function deleteRecipeMaterialAction(formData: FormData) {
 }
 
 export async function addRecipeCostAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const recipeId = String(formData.get("recipeId") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const componentType = String(formData.get("componentType") ?? "").trim();
@@ -578,6 +620,7 @@ export async function addRecipeCostAction(formData: FormData) {
   }
 
   await db.insert(recipeCosts).values({
+    companyId: activeContext.companyId,
     recipeId,
     name,
     componentType: componentType as "material" | "labor" | "overhead" | "other",
@@ -593,6 +636,7 @@ export async function addRecipeCostAction(formData: FormData) {
 }
 
 export async function updateRecipeCostAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const costId = String(formData.get("costId") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const componentType = String(formData.get("componentType") ?? "").trim();
@@ -625,7 +669,7 @@ export async function updateRecipeCostAction(formData: FormData) {
       basis: basis as "per_batch" | "per_unit",
       amount: String(amount),
     })
-    .where(eq(recipeCosts.id, costId));
+    .where(and(eq(recipeCosts.id, costId), eq(recipeCosts.companyId, activeContext.companyId)));
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");
@@ -635,6 +679,7 @@ export async function updateRecipeCostAction(formData: FormData) {
 }
 
 export async function deleteRecipeCostAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const costId = String(formData.get("costId") ?? "").trim();
   const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
   if (!costId) {
@@ -642,7 +687,9 @@ export async function deleteRecipeCostAction(formData: FormData) {
     throw new Error("costId is required");
   }
 
-  await db.delete(recipeCosts).where(eq(recipeCosts.id, costId));
+  await db
+    .delete(recipeCosts)
+    .where(and(eq(recipeCosts.id, costId), eq(recipeCosts.companyId, activeContext.companyId)));
 
   revalidatePath("/resep-produksi");
   revalidatePath("/hpp");

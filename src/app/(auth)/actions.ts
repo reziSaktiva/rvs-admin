@@ -179,6 +179,11 @@ export async function createCompanyAndContinue(
   const createdCompany = await createCompanyAndAssignOwner({
     profileId: user.id,
     companyName,
+    email: user.email ?? null,
+    userMetadata:
+      typeof user.user_metadata === "object" && user.user_metadata !== null
+        ? (user.user_metadata as Record<string, unknown>)
+        : null,
   });
 
   await setActiveCompanyIdCookie(createdCompany.id);

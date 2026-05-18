@@ -6,6 +6,7 @@ import {
   type RecordInventoryMovementInput,
   type StockMovementType,
 } from "@/lib/inventory";
+import { requireCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
 
 const isStockMovementType = (value: string): value is StockMovementType =>
   INVENTORY_MOVEMENT_TYPES.includes(value as StockMovementType);
@@ -23,6 +24,7 @@ const REQUIRED_UNIT_COST_TYPES = new Set<StockMovementType>(["opening", "purchas
 
 export async function GET(request: Request) {
   try {
+    const activeContext = await requireCurrentUserActiveCompanyContext();
     const { searchParams } = new URL(request.url);
     const movementTypeParam = searchParams.get("movementType");
     const movementType =
@@ -33,6 +35,7 @@ export async function GET(request: Request) {
     const limitParam = Number(searchParams.get("limit"));
     const offsetParam = Number(searchParams.get("offset"));
     const result = await getInventoryMovementHistory({
+      companyId: activeContext.companyId,
       itemId: searchParams.get("itemId") ?? undefined,
       movementType,
       referenceKeyword: searchParams.get("referenceKeyword") ?? undefined,
@@ -97,6 +100,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const activeContext = await requireCurrentUserActiveCompanyContext();
     const body = (await request.json()) as Partial<RecordInventoryMovementInput>;
 
     if (!body.itemId || !body.movementType || body.qtyDelta === undefined || !body.unitId) {
@@ -156,6 +160,7 @@ export async function POST(request: Request) {
     }
 
     const result = await recordInventoryMovement({
+      companyId: activeContext.companyId,
       itemId: body.itemId,
       movementType: body.movementType,
       qtyDelta,

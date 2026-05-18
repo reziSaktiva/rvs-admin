@@ -4,6 +4,8 @@ import { getResepProduksiPageData } from "./data";
 import { RecipeFilterCard } from "./components/recipe-filter-card";
 import { RecipeListCard } from "./components/recipe-list-card";
 import { errorLabel, isRecipeStatus } from "./components/view-model";
+import { getCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
+import { redirect } from "next/navigation";
 
 type ResepProduksiPageProps = {
   searchParams?: Promise<{
@@ -16,6 +18,9 @@ type ResepProduksiPageProps = {
 };
 
 export default async function ResepProduksiPage({ searchParams }: ResepProduksiPageProps) {
+  const activeContext = await getCurrentUserActiveCompanyContext();
+  if (!activeContext) redirect("/select-company");
+
   const params = (await searchParams) ?? {};
   const parsedPage = Number(params.page ?? "1");
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
@@ -24,7 +29,7 @@ export default async function ResepProduksiPage({ searchParams }: ResepProduksiP
   const statusParam = params.status as string | undefined;
   const selectedStatus = statusParam === "__all" ? undefined : isRecipeStatus(statusParam) ? statusParam : undefined;
   const { recipeRows, availableUnits, categories, products, allVariants, hasNextPage } =
-    await getResepProduksiPageData(selectedStatus, { page, pageSize });
+    await getResepProduksiPageData(activeContext.companyId, selectedStatus, { page, pageSize });
   const hasPreviousPage = page > 1;
 
   const pageError = errorLabel(params.error);

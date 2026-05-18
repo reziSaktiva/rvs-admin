@@ -22,6 +22,8 @@ import {
   INVENTORY_MOVEMENT_TYPES,
   type StockMovementType,
 } from "@/lib/inventory";
+import { getCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
+import { redirect } from "next/navigation";
 
 type MutasiStokPageProps = {
   searchParams?: Promise<{
@@ -74,6 +76,9 @@ const buildQueryString = (params: Record<string, string | undefined>) => {
 };
 
 export default async function MutasiStokPage({ searchParams }: MutasiStokPageProps) {
+  const activeContext = await getCurrentUserActiveCompanyContext();
+  if (!activeContext) redirect("/select-company");
+
   const params = (await searchParams) ?? {};
   const parsedPage = Number(params.page ?? "1");
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
@@ -87,8 +92,9 @@ export default async function MutasiStokPage({ searchParams }: MutasiStokPagePro
   const movementType = isValidMovementType ? (params.movementType as StockMovementType) : undefined;
 
   const [movementOptions, movementRows] = await Promise.all([
-    getInventoryMovementOptions(),
+    getInventoryMovementOptions(activeContext.companyId),
     getInventoryMovementHistory({
+      companyId: activeContext.companyId,
       itemId: params.itemId || undefined,
       movementType,
       referenceKeyword: params.referenceKeyword || undefined,

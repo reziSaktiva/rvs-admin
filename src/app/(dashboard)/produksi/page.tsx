@@ -14,6 +14,8 @@ import {
   previewProductionPost,
 } from "@/lib/production";
 import { PostProductionForm } from "@/components/production/post-production-form";
+import { getCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
+import { redirect } from "next/navigation";
 
 type ProduksiPageProps = {
   searchParams?: Promise<{
@@ -33,8 +35,11 @@ const formatCurrency = (value: number) =>
   value.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 
 export default async function ProduksiPage({ searchParams }: ProduksiPageProps) {
+  const activeContext = await getCurrentUserActiveCompanyContext();
+  if (!activeContext) redirect("/select-company");
+
   const params = (await searchParams) ?? {};
-  const recipeOptions = await getProductionRecipeOptions();
+  const recipeOptions = await getProductionRecipeOptions(activeContext.companyId);
 
   if (recipeOptions.length === 0) {
     return (
@@ -56,12 +61,12 @@ export default async function ProduksiPage({ searchParams }: ProduksiPageProps) 
   let preview = null;
   let previewError: string | null = null;
   try {
-    preview = await previewProductionPost(recipeId, batchCount);
+    preview = await previewProductionPost(activeContext.companyId, recipeId, batchCount);
   } catch (error) {
     previewError = error instanceof Error ? error.message : "Gagal preview post produksi";
   }
 
-  const runHistory = await getProductionRunHistory(30);
+  const runHistory = await getProductionRunHistory(activeContext.companyId, 30);
 
   return (
     <div className="space-y-4">

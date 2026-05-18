@@ -30,15 +30,17 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { InventoryMovementForm } from "@/components/inventory/inventory-movement-form";
 import { db } from "@/lib/db";
-import { costItemInventoryMovements } from "@/lib/db/drizzle/schema";
+import { costItemInventoryMovements, units } from "@/lib/db/drizzle/schema";
 import { getInventoryMovementOptions, getRawMaterialAssetSummary } from "@/lib/inventory";
 import { ClipboardList, Package, ShoppingCart, Warehouse } from "lucide-react";
 import { AddRawMaterialFormCard } from "@/components/inventory/add-raw-material-form-card";
 import { ReferencePriceFormCard } from "@/components/inventory/reference-price-form-card";
 import { setRawMaterialReferencePriceAction } from "./actions";
+import { getCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
+import { redirect } from "next/navigation";
 
 type BahanBakuPageProps = {
   searchParams?: Promise<{
@@ -67,6 +69,9 @@ const itemTypeLabel = (type: string) => {
 };
 
 export default async function BahanBakuPage({ searchParams }: BahanBakuPageProps) {
+  const activeContext = await getCurrentUserActiveCompanyContext();
+  if (!activeContext) redirect("/select-company");
+
   const params = (await searchParams) ?? {};
   const parsedPage = Number(params.page ?? "1");
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
@@ -75,9 +80,10 @@ export default async function BahanBakuPage({ searchParams }: BahanBakuPageProps
   const offset = (page - 1) * pageSize;
 
   const [summary, movementOptions, availableUnits, purchaseRows] = await Promise.all([
-    getRawMaterialAssetSummary(),
-    getInventoryMovementOptions(),
+    getRawMaterialAssetSummary(activeContext.companyId),
+    getInventoryMovementOptions(activeContext.companyId),
     db.query.units.findMany({
+      where: eq(units.companyId, activeContext.companyId),
       columns: {
         id: true,
         code: true,
@@ -87,7 +93,10 @@ export default async function BahanBakuPage({ searchParams }: BahanBakuPageProps
       orderBy: (table, { asc }) => [asc(table.code)],
     }),
     db.query.costItemInventoryMovements.findMany({
-      where: eq(costItemInventoryMovements.movementType, "purchase"),
+      where: and(
+        eq(costItemInventoryMovements.companyId, activeContext.companyId),
+        eq(costItemInventoryMovements.movementType, "purchase")
+      ),
       columns: {
         itemId: true,
         unitCost: true,

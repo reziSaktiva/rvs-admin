@@ -9,6 +9,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getProducts } from "@/lib/product";
+import { getCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
+import { redirect } from "next/navigation";
 
 const formatCurrency = (value: number) =>
   value.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
@@ -19,7 +21,10 @@ const formatPriceRange = (minPrice: number, maxPrice: number) => {
 };
 
 export default async function ProdukPage() {
-  const { data: products } = await getProducts();
+  const activeContext = await getCurrentUserActiveCompanyContext();
+  if (!activeContext) redirect("/select-company");
+
+  const { data: products } = await getProducts(activeContext.companyId);
 
   return (
     <div className="space-y-4">

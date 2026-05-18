@@ -1,7 +1,16 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { profiles } from "@/lib/db/drizzle/schema";
-import { createClient } from "@/lib/supabase/server";
+import {
+  categories as categoriesTable,
+  companyMembers,
+  costItems,
+  product,
+  productVariant,
+  profiles,
+  recipes,
+  units,
+} from "@/lib/db/drizzle/schema";
+import { getCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
 import type { RecipeStatus } from "./components/view-model";
 
 type ResepProduksiPaginationInput = {
@@ -10,6 +19,7 @@ type ResepProduksiPaginationInput = {
 };
 
 export async function getResepProduksiPageData(
+  companyId: string,
   selectedStatus: RecipeStatus | undefined,
   pagination: ResepProduksiPaginationInput
 ) {
@@ -17,7 +27,9 @@ export async function getResepProduksiPageData(
   const offset = (page - 1) * pageSize;
   const [recipeRows, availableItems, availableUnits, categories, products, allVariants] = await Promise.all([
     db.query.recipes.findMany({
-      where: selectedStatus ? (table) => eq(table.status, selectedStatus) : undefined,
+      where: selectedStatus
+        ? and(eq(recipes.companyId, companyId), eq(recipes.status, selectedStatus))
+        : eq(recipes.companyId, companyId),
       with: {
         productVariant: {
           columns: {
@@ -115,7 +127,7 @@ export async function getResepProduksiPageData(
         name: true,
         itemType: true,
       },
-      where: (table, { eq: eqOp }) => eqOp(table.isActive, true),
+      where: and(eq(costItems.companyId, companyId), eq(costItems.isActive, true)),
       orderBy: (table) => [asc(table.name)],
     }),
     db.query.units.findMany({
@@ -124,6 +136,7 @@ export async function getResepProduksiPageData(
         code: true,
         dimension: true,
       },
+      where: eq(units.companyId, companyId),
       orderBy: (table) => [asc(table.code)],
     }),
     db.query.categories.findMany({
@@ -131,6 +144,7 @@ export async function getResepProduksiPageData(
         id: true,
         name: true,
       },
+      where: eq(categoriesTable.companyId, companyId),
       orderBy: (table) => [asc(table.name)],
     }),
     db.query.product.findMany({
@@ -138,6 +152,7 @@ export async function getResepProduksiPageData(
         id: true,
         name: true,
       },
+      where: eq(product.companyId, companyId),
       orderBy: (table) => [asc(table.name)],
     }),
     db.query.productVariant.findMany({
@@ -147,6 +162,7 @@ export async function getResepProduksiPageData(
         size: true,
         isActive: true,
       },
+      where: eq(productVariant.companyId, companyId),
       with: {
         product: {
           columns: {
@@ -175,14 +191,24 @@ export type ResepProduksiPageData = Awaited<ReturnType<typeof getResepProduksiPa
 export type RecipeRow = ResepProduksiPageData["recipeRows"][number];
 
 export async function getResepProduksiRecipeDetailData(recipeId: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const activeContext = await getCurrentUserActiveCompanyContext();
+  if (!activeContext) {
+    return {
+      recipe: null,
+      availableItems: [],
+      availableUnits: [],
+      access: {
+        canManage: false,
+        canManageByRole: false,
+        canManageByStatus: false,
+        roleName: null,
+      },
+    };
+  }
 
   const [recipe, availableItems, availableUnits, profile] = await Promise.all([
     db.query.recipes.findFirst({
-      where: (table) => eq(table.id, recipeId),
+      where: and(eq(recipes.id, recipeId), eq(recipes.companyId, activeContext.companyId)),
       with: {
         productVariant: {
           columns: {
@@ -277,7 +303,10 @@ export async function getResepProduksiRecipeDetailData(recipeId: string) {
         name: true,
         itemType: true,
       },
-      where: (table, { eq: eqOp }) => eqOp(table.isActive, true),
+      where: and(
+        eq(costItems.companyId, activeContext.companyId),
+        eq(costItems.isActive, true)
+      ),
       orderBy: (table) => [asc(table.name)],
     }),
     db.query.units.findMany({
@@ -286,25 +315,25 @@ export async function getResepProduksiRecipeDetailData(recipeId: string) {
         code: true,
         dimension: true,
       },
+      where: eq(units.companyId, activeContext.companyId),
       orderBy: (table) => [asc(table.code)],
     }),
-    user?.id
-      ? db.query.profiles.findFirst({
-          where: eq(profiles.id, user.id),
+    db.query.profiles.findFirst({
+      where: eq(profiles.id, activeContext.userId),
+      with: {
+        companyMemberships: {
+          where: eq(companyMembers.companyId, activeContext.companyId),
           with: {
-            companyMemberships: {
-              with: {
-                role: {
-                  columns: {
-                    title: true,
-                    displayName: true,
-                  },
-                },
+            role: {
+              columns: {
+                title: true,
+                displayName: true,
               },
             },
           },
-        })
-      : null,
+        },
+      },
+    }),
   ]);
 
   const membership = profile?.companyMemberships?.[0];

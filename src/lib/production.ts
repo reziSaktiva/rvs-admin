@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./db";
 import {
   costItemInventoryBalances,
@@ -43,6 +43,7 @@ export type ProductionPreview = {
 };
 
 export type PostProductionInput = {
+  companyId: string;
   recipeId: string;
   batchCount: number;
   note?: string;
@@ -238,8 +239,11 @@ const computePreviewFromRecipeData = (
   };
 };
 
-export const getProductionRecipeOptions = async (): Promise<ProductionRecipeOption[]> => {
+export const getProductionRecipeOptions = async (
+  companyId: string
+): Promise<ProductionRecipeOption[]> => {
   const rows = await db.query.recipes.findMany({
+    where: eq(recipes.companyId, companyId),
     with: {
       productVariant: {
         columns: {
@@ -276,8 +280,9 @@ export const getProductionRecipeOptions = async (): Promise<ProductionRecipeOpti
   }));
 };
 
-const getBalancesByItemId = async () => {
+const getBalancesByItemId = async (companyId: string) => {
   const balances = await db.query.costItemInventoryBalances.findMany({
+    where: eq(costItemInventoryBalances.companyId, companyId),
     with: {
       unit: {
         columns: {
@@ -303,12 +308,13 @@ const getBalancesByItemId = async () => {
 };
 
 export const previewProductionPost = async (
+  companyId: string,
   recipeId: string,
   batchCountInput: number
 ): Promise<ProductionPreview> => {
   const [recipe, conversions, balanceByItemId] = await Promise.all([
     db.query.recipes.findFirst({
-      where: eq(recipes.id, recipeId),
+      where: and(eq(recipes.companyId, companyId), eq(recipes.id, recipeId)),
       with: {
         productVariant: {
           columns: {
@@ -350,6 +356,7 @@ export const previewProductionPost = async (
       },
     }),
     db.query.unitConversions.findMany({
+      where: eq(unitConversions.companyId, companyId),
       orderBy: desc(unitConversions.createdAt),
       columns: {
         fromUnitId: true,
@@ -357,7 +364,7 @@ export const previewProductionPost = async (
         multiplier: true,
       },
     }),
-    getBalancesByItemId(),
+    getBalancesByItemId(companyId),
   ]);
 
   if (!recipe) throw new Error(`Recipe ${recipeId} not found`);
@@ -369,7 +376,7 @@ export const postProductionRun = async (input: PostProductionInput): Promise<Pos
   return db.transaction(async (tx) => {
     const [recipe, conversions] = await Promise.all([
       tx.query.recipes.findFirst({
-        where: eq(recipes.id, input.recipeId),
+        where: and(eq(recipes.companyId, input.companyId), eq(recipes.id, input.recipeId)),
         with: {
           productVariant: {
             columns: {
@@ -411,6 +418,7 @@ export const postProductionRun = async (input: PostProductionInput): Promise<Pos
         },
       }),
       tx.query.unitConversions.findMany({
+        where: eq(unitConversions.companyId, input.companyId),
         orderBy: desc(unitConversions.createdAt),
         columns: {
           fromUnitId: true,
@@ -427,7 +435,10 @@ export const postProductionRun = async (input: PostProductionInput): Promise<Pos
     const itemIds = recipe.materials.map((material) => material.itemId);
     const balances = itemIds.length
       ? await tx.query.costItemInventoryBalances.findMany({
-          where: inArray(costItemInventoryBalances.itemId, itemIds),
+          where: and(
+            eq(costItemInventoryBalances.companyId, input.companyId),
+            inArray(costItemInventoryBalances.itemId, itemIds)
+          ),
           columns: {
             itemId: true,
             qtyOnHand: true,
@@ -505,6 +516,7 @@ export const postProductionRun = async (input: PostProductionInput): Promise<Pos
 
       const unitCostPerMovementUnit = previousAvgCostPerUnit * qtyFactor;
       await tx.insert(costItemInventoryMovements).values({
+        companyId: input.companyId,
         itemId: material.itemId,
         movementType: "production_out",
         qtyDelta: String(qtyDeltaInMovementUnit),
@@ -519,7 +531,10 @@ export const postProductionRun = async (input: PostProductionInput): Promise<Pos
     }
 
     const currentVariant = await tx.query.productVariant.findFirst({
-      where: eq(productVariant.id, preview.recipe.productVariantId),
+      where: and(
+        eq(productVariant.companyId, input.companyId),
+        eq(productVariant.id, preview.recipe.productVariantId)
+      ),
       columns: {
         id: true,
         stock: true,
@@ -548,9 +563,15 @@ export const postProductionRun = async (input: PostProductionInput): Promise<Pos
   });
 };
 
-export const getProductionRunHistory = async (limit = 30): Promise<ProductionRunHistoryItem[]> => {
+export const getProductionRunHistory = async (
+  companyId: string,
+  limit = 30
+): Promise<ProductionRunHistoryItem[]> => {
   const rows = await db.query.costItemInventoryMovements.findMany({
-    where: (table, { eq: eqOp }) => eqOp(table.referenceType, "production_run"),
+    where: and(
+      eq(costItemInventoryMovements.companyId, companyId),
+      eq(costItemInventoryMovements.referenceType, "production_run")
+    ),
     with: {
       item: {
         columns: {

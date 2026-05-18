@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { costItemPrices, costItems } from "@/lib/db/drizzle/schema";
 import { recordInventoryMovement } from "@/lib/inventory";
+import { requireCurrentUserActiveCompanyContext } from "@/lib/company/active-company";
 
 const toNumber = (value: FormDataEntryValue | null): number => {
   if (typeof value !== "string") return NaN;
@@ -14,6 +15,7 @@ const toNumber = (value: FormDataEntryValue | null): number => {
 };
 
 export async function addRawMaterialAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const name = String(formData.get("name") ?? "").trim();
   const sku = String(formData.get("sku") ?? "").trim();
   const itemTypeInput = String(formData.get("itemType") ?? "raw_material").trim();
@@ -30,7 +32,7 @@ export async function addRawMaterialAction(formData: FormData) {
   const itemType = itemTypeInput === "packaging" ? "packaging" : "raw_material";
 
   const existingByName = await db.query.costItems.findFirst({
-    where: eq(costItems.name, name),
+    where: and(eq(costItems.companyId, activeContext.companyId), eq(costItems.name, name)),
     columns: { id: true },
   });
   if (existingByName) {
@@ -39,7 +41,7 @@ export async function addRawMaterialAction(formData: FormData) {
 
   if (sku) {
     const existingBySku = await db.query.costItems.findFirst({
-      where: eq(costItems.sku, sku),
+      where: and(eq(costItems.companyId, activeContext.companyId), eq(costItems.sku, sku)),
       columns: { id: true },
     });
     if (existingBySku) {
@@ -50,6 +52,7 @@ export async function addRawMaterialAction(formData: FormData) {
   const inserted = await db
     .insert(costItems)
     .values({
+      companyId: activeContext.companyId,
       name,
       sku: sku || null,
       itemType,
@@ -65,6 +68,7 @@ export async function addRawMaterialAction(formData: FormData) {
 
   if (Number.isFinite(initialPrice) && initialPrice > 0) {
     await db.insert(costItemPrices).values({
+      companyId: activeContext.companyId,
       itemId,
       unitId,
       pricePerUnit: String(initialPrice),
@@ -85,6 +89,7 @@ export async function addRawMaterialAction(formData: FormData) {
     }
 
     await recordInventoryMovement({
+      companyId: activeContext.companyId,
       itemId,
       movementType: "opening",
       qtyDelta: openingQty,
@@ -103,6 +108,7 @@ export async function addRawMaterialAction(formData: FormData) {
 }
 
 export async function setRawMaterialReferencePriceAction(formData: FormData) {
+  const activeContext = await requireCurrentUserActiveCompanyContext();
   const selectedItem = String(formData.get("itemSelection") ?? "").trim();
   const price = toNumber(formData.get("pricePerUnit"));
 
@@ -118,6 +124,7 @@ export async function setRawMaterialReferencePriceAction(formData: FormData) {
   const item = await db.query.costItems.findFirst({
     where: and(
       eq(costItems.id, itemId),
+      eq(costItems.companyId, activeContext.companyId),
       eq(costItems.isActive, true),
       inArray(costItems.itemType, ["raw_material", "packaging"])
     ),
@@ -131,6 +138,7 @@ export async function setRawMaterialReferencePriceAction(formData: FormData) {
   }
 
   await db.insert(costItemPrices).values({
+    companyId: activeContext.companyId,
     itemId,
     unitId,
     pricePerUnit: String(price),
