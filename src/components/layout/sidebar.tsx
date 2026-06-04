@@ -60,6 +60,7 @@ export const navSections: NavSection[] = [
         label: "Stok",
         icon: ListIcon,
         items: [
+          { label: "Setup Operasional", href: "/setup-operasional", icon: Layers },
           { label: "Bahan Baku", href: "/bahan-baku", icon: Warehouse },
           { label: "Pembelian Bahan", href: "/pembelian", icon: ShoppingCart },
           { label: "Riwayat", href: "/riwayat-stok", icon: History },

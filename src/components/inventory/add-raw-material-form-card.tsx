@@ -16,12 +16,15 @@ import { OptionalOpeningStockFields } from "./optional-opening-stock-fields";
 type UnitOption = {
   id: string;
   code: string;
-  name: string;
+  name?: string;
   dimension: string;
 };
 
 type AddRawMaterialFormCardProps = {
   availableUnits: UnitOption[];
+  action?: (formData: FormData) => void | Promise<void>;
+  hiddenFields?: Record<string, string>;
+  submitLabel?: string;
 };
 
 const dimensionHint = (dimension: string) => {
@@ -34,7 +37,12 @@ const dimensionHint = (dimension: string) => {
   return map[dimension] ?? dimension;
 };
 
-export function AddRawMaterialFormCard({ availableUnits }: AddRawMaterialFormCardProps) {
+export function AddRawMaterialFormCard({
+  availableUnits,
+  action = addRawMaterialAction,
+  hiddenFields,
+  submitLabel = "Simpan bahan",
+}: AddRawMaterialFormCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -52,7 +60,12 @@ export function AddRawMaterialFormCard({ availableUnits }: AddRawMaterialFormCar
           </p>
         ) : null}
 
-        <form action={addRawMaterialAction} className="space-y-4">
+        <form action={action} className="space-y-4">
+          {hiddenFields
+            ? Object.entries(hiddenFields).map(([name, value]) => (
+                <input key={name} type="hidden" name={name} value={value} />
+              ))
+            : null}
           <FieldSet>
             <FieldLegend>Informasi bahan</FieldLegend>
             <FieldDescription>
@@ -96,7 +109,8 @@ export function AddRawMaterialFormCard({ availableUnits }: AddRawMaterialFormCar
                   <SelectContent>
                     {availableUnits.map((unit) => (
                       <SelectItem key={unit.id} value={unit.id}>
-                        {unit.code} — {unit.name} ({dimensionHint(unit.dimension)})
+                        {unit.code}
+                        {unit.name ? ` — ${unit.name}` : ""} ({dimensionHint(unit.dimension)})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -112,7 +126,7 @@ export function AddRawMaterialFormCard({ availableUnits }: AddRawMaterialFormCar
 
           <div className="flex items-end">
             <Button type="submit" disabled={availableUnits.length === 0}>
-              Simpan bahan
+              {submitLabel}
             </Button>
           </div>
         </form>
