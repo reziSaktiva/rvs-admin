@@ -32,12 +32,14 @@ type VariantRecipeInput = {
   size?: string;
   sku?: string;
   barcode?: string;
-  price?: number;
+  hasInitialStock?: boolean;
   stock?: number;
+  initialSellingPrice?: number;
   recipeName?: string;
   outputQty?: number;
   outputUnitId?: string;
   lossPercent?: number;
+  materials?: MaterialInput[];
 };
 
 export async function POST(request: Request) {
@@ -48,13 +50,11 @@ export async function POST(request: Request) {
       productDescription?: string;
       categoryId?: string | null;
       variants?: VariantRecipeInput[];
-      materials?: MaterialInput[];
       costs?: CostInput[];
     };
 
     const productName = String(body.productName ?? "").trim();
     const variantRows = Array.isArray(body.variants) ? body.variants : [];
-    const materialRows = Array.isArray(body.materials) ? body.materials : [];
     const costRows = Array.isArray(body.costs) ? body.costs : [];
 
     if (!productName) {
@@ -75,7 +75,9 @@ export async function POST(request: Request) {
       const outputUnitId = String(row.outputUnitId ?? "").trim();
       const outputQty = Number(row.outputQty);
       const lossPercent = Number(row.lossPercent ?? 0);
-      const price = Number(row.price ?? 0);
+      const hasInitialStock = row.hasInitialStock === true;
+      const stock = Number(row.stock ?? 0);
+      const initialSellingPrice = Number(row.initialSellingPrice ?? 0);
 
       if (!recipeName || !outputUnitId) {
         throw new Error(`Varian #${index + 1}: nama resep dan satuan output wajib diisi.`);
@@ -86,26 +88,51 @@ export async function POST(request: Request) {
       if (!Number.isFinite(lossPercent) || lossPercent < 0 || lossPercent > 100) {
         throw new Error(`Varian #${index + 1}: nilai susut harus di antara 0-100.`);
       }
-      if (!Number.isFinite(price) || price < 0) {
-        throw new Error(`Varian #${index + 1}: harga varian tidak valid.`);
+      if (hasInitialStock && (!Number.isFinite(stock) || stock <= 0)) {
+        throw new Error(`Varian #${index + 1}: stok awal wajib diisi jika toggle aktif.`);
+      }
+      if (
+        hasInitialStock &&
+        (!Number.isFinite(initialSellingPrice) || initialSellingPrice < 0)
+      ) {
+        throw new Error(`Varian #${index + 1}: harga per varian wajib diisi jika toggle aktif.`);
+      }
+
+      const parsedMaterials = Array.isArray(row.materials) ? row.materials : [];
+      const validMaterials = parsedMaterials
+        .filter((material) => material.itemId && material.unitId && Number(material.qty) > 0)
+        .map((material, materialIndex) => ({
+          itemId: material.itemId,
+          unitId: material.unitId,
+          qty: Number(material.qty),
+          wastePercent: Number(material.wastePercent ?? 0),
+          isOptional: Boolean(material.isOptional ?? false),
+          sortOrder: Number.isFinite(material.sortOrder)
+            ? Math.trunc(material.sortOrder!)
+            : materialIndex,
+        }));
+
+      if (validMaterials.length === 0) {
+        throw new Error(`Varian #${index + 1}: minimal harus punya 1 bahan BOM.`);
       }
 
       return {
         size: String(row.size ?? "").trim() || null,
         sku: String(row.sku ?? "").trim() || null,
         barcode: String(row.barcode ?? "").trim() || null,
-        price,
-        stock: Number.isFinite(Number(row.stock ?? 0))
-          ? Math.max(0, Math.trunc(Number(row.stock ?? 0)))
-          : 0,
+        stock: hasInitialStock ? Math.max(0, Math.trunc(stock)) : 0,
+        sellingPrice: hasInitialStock ? initialSellingPrice : 0,
         recipeName,
         outputQty,
         outputUnitId,
         lossPercent,
+        materials: validMaterials,
       };
     });
 
-    const materialItemIds = [...new Set(materialRows.map((row) => row.itemId))];
+    const materialItemIds = [
+      ...new Set(validatedVariants.flatMap((variant) => variant.materials.map((row) => row.itemId))),
+    ];
     if (materialItemIds.length > 0) {
       const validItems = await db.query.costItems.findMany({
         where: and(
@@ -142,6 +169,7 @@ export async function POST(request: Request) {
         recipeId: string;
         size: string | null;
         recipeName: string;
+        currentSellingPrice: number;
       }> = [];
 
       for (const variant of validatedVariants) {
@@ -153,7 +181,7 @@ export async function POST(request: Request) {
             size: variant.size,
             sku: variant.sku,
             barcode: variant.barcode,
-            price: String(variant.price),
+            price: String(variant.sellingPrice),
             stock: variant.stock,
             isActive: true,
             updatedAt: new Date().toISOString(),
@@ -178,9 +206,9 @@ export async function POST(request: Request) {
 
         if (!newRecipe?.id) throw new Error("Gagal membuat resep.");
 
-        if (materialRows.length > 0) {
+        if (variant.materials.length > 0) {
           await tx.insert(recipeMaterials).values(
-            materialRows.map((row, index) => ({
+            variant.materials.map((row, index) => ({
               companyId: activeContext.companyId,
               recipeId: newRecipe.id,
               itemId: row.itemId,
@@ -211,6 +239,7 @@ export async function POST(request: Request) {
           recipeId: newRecipe.id,
           size: variant.size,
           recipeName: variant.recipeName,
+          currentSellingPrice: variant.sellingPrice,
         });
       }
 
@@ -228,6 +257,7 @@ export async function POST(request: Request) {
           recipeId: entry.recipeId,
           size: entry.size,
           recipeName: entry.recipeName,
+          currentSellingPrice: entry.currentSellingPrice,
           hppPerUnit: hppPreview.totals.hppPerOutputUnit,
           materialCost: hppPreview.totals.materialCost,
           additionalCost: hppPreview.totals.additionalCost,
